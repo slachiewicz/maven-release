@@ -1,0 +1,49 @@
+version: 2
+updates:
+- package-ecosystem: maven
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "04:00"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: org.codehaus.plexus:plexus-utils
+    versions:
+    - 3.3.0
+  - dependency-name: org.apache.maven.shared:maven-invoker
+    versions:
+    - 3.0.1
+    - 3.1.0
+  - dependency-name: org.mockito:mockito-core
+    versions:
+    - 3.7.7
+  - dependency-name: org.apache.maven.shared:maven-artifact-transfer
+    versions:
+    - 0.13.1
+  - dependency-name: org.apache.commons:commons-lang3
+    versions:
+    - "3.11"
+  - dependency-name: org.apache.maven:maven-settings
+    versions:
+    - 3.6.3
+  - dependency-name: org.apache.maven:maven-repository-metadata
+    versions:
+    - 3.6.3
+  - dependency-name: org.apache.maven:maven-plugin-api
+    versions:
+    - 3.6.3
+  - dependency-name: org.apache.maven:maven-model
+    versions:
+    - 3.6.3
+  - dependency-name: org.apache.maven:maven-compat
+    versions:
+    - 3.6.3
+  - dependency-name: org.apache.maven:maven-core
+    versions:
+    - 3.6.3
+  - dependency-name: org.apache.maven:maven-artifact
+    versions:
+    - 3.6.3
+  - dependency-name: org.apache.maven.plugins:maven-invoker-plugin
+    versions:
+    - 3.2.1
