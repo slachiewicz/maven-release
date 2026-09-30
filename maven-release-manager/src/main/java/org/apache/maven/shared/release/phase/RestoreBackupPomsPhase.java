@@ -18,15 +18,14 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.command.edit.EditScmResult;
@@ -65,13 +64,11 @@ public class RestoreBackupPomsPhase extends AbstractBackupPomsPhase {
 
     @Override
     public ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException {
         ReleaseResult result = new ReleaseResult();
 
-        for (MavenProject project : reactorProjects) {
+        for (Project project : reactorProjects) {
             restorePomBackup(releaseDescriptor, releaseEnvironment, project);
         }
 
@@ -82,15 +79,13 @@ public class RestoreBackupPomsPhase extends AbstractBackupPomsPhase {
 
     @Override
     public ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException {
         return execute(releaseDescriptor, releaseEnvironment, reactorProjects);
     }
 
     protected void restorePomBackup(
-            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, MavenProject project)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, Project project)
             throws ReleaseExecutionException, ReleaseFailureException {
         File pomBackup = getPomBackup(project);
 
@@ -116,7 +111,8 @@ public class RestoreBackupPomsPhase extends AbstractBackupPomsPhase {
             if (releaseDescriptor.isScmUseEditMode() || provider.requiresEditMode()) {
                 EditScmResult result = provider.edit(
                         scmRepository,
-                        new ScmFileSet(new File(releaseDescriptor.getWorkingDirectory()), project.getFile()));
+                        new ScmFileSet(
+                                new File(releaseDescriptor.getWorkingDirectory()), ReleaseUtil.getPomFile(project)));
 
                 if (!result.isSuccess()) {
                     throw new ReleaseScmCommandException("Unable to enable editing on the POM", result);

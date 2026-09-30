@@ -18,22 +18,21 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.di.Injector;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFile;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmFileStatus;
 import org.apache.maven.scm.command.status.StatusScmResult;
 import org.apache.maven.scm.manager.NoSuchScmProviderException;
-import org.apache.maven.scm.manager.ScmManager;
 import org.apache.maven.scm.provider.ScmProvider;
 import org.apache.maven.scm.provider.ScmProviderStub;
 import org.apache.maven.scm.repository.ScmRepository;
@@ -43,16 +42,13 @@ import org.apache.maven.shared.release.ReleaseFailureException;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.scm.ReleaseScmCommandException;
 import org.apache.maven.shared.release.scm.ReleaseScmRepositoryException;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
 import org.apache.maven.shared.release.stubs.ScmManagerStub;
-import org.codehaus.plexus.PlexusContainer;
-import org.codehaus.plexus.testing.PlexusTest;
-import org.codehaus.plexus.testing.PlexusTestConfiguration;
 import org.junit.jupiter.api.Test;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -69,18 +65,17 @@ import static org.mockito.Mockito.when;
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
-class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
+class ScmCheckModificationsPhaseTest extends AbstractInjectedTestCase {
     @Inject
     @Named("scm-check-modifications")
     private ReleasePhase phase;
 
-    private ScmManagerStub scmManagerStub;
+    @Inject
+    protected ScmManagerStub scmManager;
 
     @Override
-    public void customizeContainer(PlexusContainer container) {
-        scmManagerStub = new ScmManagerStub();
-        container.addComponent(scmManagerStub, ScmManager.class.getName());
+    protected void customizeInjector(Injector injector) {
+        injector.bindImplicit(ScmManagerStub.class);
     }
 
     @Test
@@ -90,11 +85,11 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         builder.setScmSourceUrl("scm-url");
         builder.setWorkingDirectory(getTestFile("target/test/checkout").getAbsolutePath());
 
-        scmManagerStub.setException(new NoSuchScmProviderException("..."));
+        scmManager.setException(new NoSuchScmProviderException("..."));
 
         // execute
         try {
-            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseExecutionException e) {
@@ -102,7 +97,7 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         }
 
         try {
-            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseExecutionException e) {
@@ -118,11 +113,11 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         builder.setScmSourceUrl("scm-url");
         builder.setWorkingDirectory(getTestFile("target/test/checkout").getAbsolutePath());
 
-        scmManagerStub.setException(new ScmRepositoryException("..."));
+        scmManager.setException(new ScmRepositoryException("..."));
 
         // execute
         try {
-            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseScmRepositoryException e) {
@@ -130,7 +125,7 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         }
 
         try {
-            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseScmRepositoryException e) {
@@ -149,11 +144,11 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         when(scmProviderMock.status(isA(ScmRepository.class), isA(ScmFileSet.class)))
                 .thenThrow(new ScmException("..."));
 
-        scmManagerStub.setScmProvider(scmProviderMock);
+        scmManager.setScmProvider(scmProviderMock);
 
         // execute
         try {
-            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseExecutionException e) {
@@ -161,7 +156,7 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         }
 
         try {
-            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseExecutionException e) {
@@ -178,12 +173,12 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         ReleaseDescriptorBuilder builder = createReleaseDescriptorBuilder();
 
         ScmProviderStub providerStub =
-                (ScmProviderStub) scmManagerStub.getProviderByUrl("scm:svn:file://localhost/tmp/scm-repo");
+                (ScmProviderStub) scmManager.getProviderByUrl("scm:svn:file://localhost/tmp/scm-repo");
 
         providerStub.setStatusScmResult(new StatusScmResult("", "", "", false));
 
         try {
-            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseScmCommandException e) {
@@ -191,7 +186,7 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         }
 
         try {
-            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseScmCommandException e) {
@@ -205,9 +200,9 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
 
         setChangedFiles(builder, Collections.emptyList());
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
         // successful execution is verification enough
         assertTrue(true);
@@ -219,9 +214,9 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
 
         setChangedFiles(builder, Arrays.asList("release.properties", "pom.xml.backup", "pom.xml.tag", "pom.xml.next"));
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
         // successful execution is verification enough
         assertTrue(true);
@@ -247,12 +242,12 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
 
         assertEquals(
                 ReleaseResult.SUCCESS,
-                phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null)
+                phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null)
                         .getResultCode());
 
         assertEquals(
                 ReleaseResult.SUCCESS,
-                phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null)
+                phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null)
                         .getResultCode());
     }
 
@@ -263,7 +258,7 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         setChangedFiles(builder, Arrays.asList("pom.xml", "module/pom.xml"));
 
         try {
-            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseFailureException e) {
@@ -271,7 +266,7 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         }
 
         try {
-            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseFailureException e) {
@@ -286,7 +281,7 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         setChangedFiles(builder, Collections.singletonList("something.txt"));
 
         try {
-            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseFailureException e) {
@@ -294,7 +289,7 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         }
 
         try {
-            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseFailureException e) {
@@ -312,7 +307,7 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
                         "release.properties", "pom.xml.backup", "pom.xml.tag", "pom.xml.release", "something.txt"));
 
         try {
-            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseFailureException e) {
@@ -320,7 +315,7 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
         }
 
         try {
-            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null);
 
             fail("Status check should have failed");
         } catch (ReleaseFailureException e) {
@@ -337,12 +332,12 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
 
         assertEquals(
                 ReleaseResult.SUCCESS,
-                phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null)
+                phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null)
                         .getResultCode());
 
         assertEquals(
                 ReleaseResult.SUCCESS,
-                phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null)
+                phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null)
                         .getResultCode());
     }
 
@@ -357,18 +352,18 @@ class ScmCheckModificationsPhaseTest implements PlexusTestConfiguration {
 
         assertEquals(
                 ReleaseResult.SUCCESS,
-                phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null)
+                phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null)
                         .getResultCode());
 
         assertEquals(
                 ReleaseResult.SUCCESS,
-                phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), null)
+                phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), null)
                         .getResultCode());
     }
 
     private void setChangedFiles(ReleaseDescriptorBuilder builder, List<String> changedFiles) throws Exception {
         ScmProviderStub providerStub =
-                (ScmProviderStub) scmManagerStub.getProviderByUrl("scm:svn:file://localhost/tmp/scm-repo");
+                (ScmProviderStub) scmManager.getProviderByUrl("scm:svn:file://localhost/tmp/scm-repo");
 
         providerStub.setStatusScmResult(new StatusScmResult("", createScmFiles(changedFiles)));
     }

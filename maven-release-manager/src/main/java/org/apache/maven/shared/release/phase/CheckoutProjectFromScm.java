@@ -18,10 +18,6 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.LinkOption;
@@ -29,7 +25,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.scm.CommandParameter;
 import org.apache.maven.scm.CommandParameters;
 import org.apache.maven.scm.ScmException;
@@ -72,9 +71,7 @@ public class CheckoutProjectFromScm extends AbstractReleasePhase {
 
     @Override
     public ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException {
         ReleaseResult releaseResult;
 
@@ -142,9 +139,7 @@ public class CheckoutProjectFromScm extends AbstractReleasePhase {
     }
 
     private ReleaseResult performCheckout(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException, ScmException {
         ReleaseResult result = new ReleaseResult();
 
@@ -170,11 +165,11 @@ public class CheckoutProjectFromScm extends AbstractReleasePhase {
             throw new ReleaseExecutionException("Unable to configure SCM repository: " + e.getMessage(), e);
         }
 
-        MavenProject rootProject = ReleaseUtil.getRootProject(reactorProjects);
+        Project rootProject = ReleaseUtil.getRootProject(reactorProjects);
 
         // TODO: sanity check that it is not . or .. or lower
         File checkoutDirectory =
-                FileUtils.resolveFile(rootProject.getBasedir(), releaseDescriptor.getCheckoutDirectory());
+                FileUtils.resolveFile(ReleaseUtil.getBasedir(rootProject), releaseDescriptor.getCheckoutDirectory());
 
         if (checkoutDirectory.exists()) {
             try {
@@ -212,7 +207,7 @@ public class CheckoutProjectFromScm extends AbstractReleasePhase {
 
             Path rootProjectBasedir;
             try {
-                rootProjectBasedir = rootProject.getBasedir().toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
+                rootProjectBasedir = rootProject.getBasedir().toRealPath(LinkOption.NOFOLLOW_LINKS);
             } catch (IOException e) {
                 throw new ReleaseExecutionException(e.getMessage(), e);
             }
@@ -236,15 +231,13 @@ public class CheckoutProjectFromScm extends AbstractReleasePhase {
 
     @Override
     public ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException {
         ReleaseResult result = new ReleaseResult();
 
-        MavenProject rootProject = ReleaseUtil.getRootProject(reactorProjects);
+        Project rootProject = ReleaseUtil.getRootProject(reactorProjects);
         File checkoutDirectory =
-                FileUtils.resolveFile(rootProject.getBasedir(), releaseDescriptor.getCheckoutDirectory());
+                FileUtils.resolveFile(ReleaseUtil.getBasedir(rootProject), releaseDescriptor.getCheckoutDirectory());
 
         if (releaseDescriptor.isLocalCheckout()) {
             logInfo(

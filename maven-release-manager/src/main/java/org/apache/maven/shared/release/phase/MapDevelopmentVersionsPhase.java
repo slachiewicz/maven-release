@@ -18,15 +18,14 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.util.Map;
 
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.apache.maven.api.services.Prompter;
 import org.apache.maven.shared.release.policy.version.VersionPolicy;
 import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
-import org.codehaus.plexus.components.interactivity.Prompter;
 
 /**
  * Map projects to their new versions after release / into the next development cycle.

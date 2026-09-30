@@ -26,13 +26,16 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.model.Model;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.model.Model;
+import org.apache.maven.api.services.xml.ModelXmlFactory;
+import org.apache.maven.api.services.xml.XmlReaderException;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
+import org.apache.maven.shared.release.env.ReleaseEnvironment;
+import org.apache.maven.shared.release.versions.ArtifactKeys;
 import org.codehaus.plexus.interpolation.InterpolationException;
 import org.codehaus.plexus.interpolation.MapBasedValueSource;
 import org.codehaus.plexus.interpolation.ObjectBasedValueSource;
@@ -61,10 +64,10 @@ public class ReleaseUtil {
         // noop
     }
 
-    public static MavenProject getRootProject(List<MavenProject> reactorProjects) {
-        MavenProject project = reactorProjects.get(0);
-        for (MavenProject currentProject : reactorProjects) {
-            if (currentProject.isExecutionRoot()) {
+    public static Project getRootProject(List<Project> reactorProjects) {
+        Project project = reactorProjects.get(0);
+        for (Project currentProject : reactorProjects) {
+            if (currentProject.isTopProject()) {
                 project = currentProject;
                 break;
             }
@@ -73,12 +76,68 @@ public class ReleaseUtil {
         return project;
     }
 
-    public static File getStandardPom(MavenProject project) {
+    /**
+     * The POM file of a project, as the Maven 3 {@code MavenProject.getFile()} returned it.
+     *
+     * @param project the project, may be {@code null}
+     * @return the POM file or {@code null}
+     */
+    public static File getPomFile(Project project) {
+        return project == null || project.getPomPath() == null
+                ? null
+                : project.getPomPath().toFile();
+    }
+
+    /**
+     * The base directory of a project, as the Maven 3 {@code MavenProject.getBasedir()} returned it.
+     *
+     * @param project the project
+     * @return the base directory
+     */
+    public static File getBasedir(Project project) {
+        return project.getBasedir().toFile();
+    }
+
+    /**
+     * The display name of a project, as the Maven 3 {@code MavenProject.getName()} returned it: the {@code name}
+     * of the POM, or the artifact id if it has none.
+     *
+     * @param project the project
+     * @return the display name
+     */
+    public static String getProjectName(Project project) {
+        String name = project.getModel().getName();
+        return name != null ? name : project.getArtifactId();
+    }
+
+    /**
+     * Reads the POM file of the project without inheritance or interpolation. The Maven 4 API has no
+     * counterpart of the Maven 3 {@code MavenProject.getOriginalModel()}, and the file may already have been
+     * rewritten by an earlier phase.
+     *
+     * @param releaseEnvironment supplies the session that owns the XML factory
+     * @param project the project
+     * @return the model as found in the POM file
+     * @throws ReleaseExecutionException if the file cannot be read
+     */
+    public static Model readOriginalModel(ReleaseEnvironment releaseEnvironment, Project project)
+            throws ReleaseExecutionException {
+        try {
+            return releaseEnvironment
+                    .getSession()
+                    .getService(ModelXmlFactory.class)
+                    .read(project.getPomPath());
+        } catch (XmlReaderException e) {
+            throw new ReleaseExecutionException("Cannot read the POM of " + project.getId() + ": " + e.getMessage(), e);
+        }
+    }
+
+    public static File getStandardPom(Project project) {
         if (project == null) {
             return null;
         }
 
-        File pom = project.getFile();
+        File pom = getPomFile(project);
 
         if (pom == null) {
             return null;
@@ -92,12 +151,12 @@ public class ReleaseUtil {
         return pom;
     }
 
-    public static File getReleasePom(MavenProject project) {
+    public static File getReleasePom(Project project) {
         if (project == null) {
             return null;
         }
 
-        File pom = project.getFile();
+        File pom = getPomFile(project);
 
         if (pom == null) {
             return null;
@@ -143,7 +202,7 @@ public class ReleaseUtil {
     }
 
     public static ReleaseDescriptor createBasedirAlignedReleaseDescriptor(
-            ReleaseDescriptor releaseDescriptor, List<MavenProject> reactorProjects) throws ReleaseExecutionException {
+            ReleaseDescriptor releaseDescriptor, List<Project> reactorProjects) throws ReleaseExecutionException {
         int parentLevels = Paths.get(releaseDescriptor.getPomFileName()).getNameCount() - 1;
 
         String url = releaseDescriptor.getScmSourceUrl();
@@ -209,14 +268,14 @@ public class ReleaseUtil {
     /**
      * Check if none of the parent projects have original SCM info in the release descriptor.
      */
-    public static boolean hasNoOriginalScmInfoInParents(MavenProject project, ReleaseDescriptor releaseDescriptor) {
-        MavenProject parent = project.getParent();
+    public static boolean hasNoOriginalScmInfoInParents(Project project, ReleaseDescriptor releaseDescriptor) {
+        Project parent = project.getParent().orElse(null);
         while (parent != null) {
-            String parentId = ArtifactUtils.versionlessKey(parent.getGroupId(), parent.getArtifactId());
+            String parentId = ArtifactKeys.versionlessKey(parent.getGroupId(), parent.getArtifactId());
             if (releaseDescriptor.hasOriginalScmInfo(parentId)) {
                 return false;
             }
-            parent = parent.getParent();
+            parent = parent.getParent().orElse(null);
         }
 
         return true;

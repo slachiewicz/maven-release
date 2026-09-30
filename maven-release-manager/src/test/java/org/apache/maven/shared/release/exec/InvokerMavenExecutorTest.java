@@ -18,24 +18,24 @@
  */
 package org.apache.maven.shared.release.exec;
 
-import javax.inject.Inject;
-
 import java.io.File;
-import java.io.Writer;
+import java.nio.file.Path;
+import java.util.Collections;
 
-import org.apache.maven.settings.Proxy;
-import org.apache.maven.settings.Server;
-import org.apache.maven.settings.Settings;
-import org.apache.maven.settings.io.xpp3.SettingsXpp3Writer;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.services.xml.SettingsXmlFactory;
+import org.apache.maven.api.settings.Proxy;
+import org.apache.maven.api.settings.Server;
+import org.apache.maven.api.settings.Settings;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
 import org.apache.maven.shared.release.util.MavenCrypto;
-import org.codehaus.plexus.testing.PlexusTest;
+import org.codehaus.plexus.components.secdispatcher.SecDispatcher;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.sonatype.plexus.components.sec.dispatcher.SecDispatcher;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -43,10 +43,8 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-@PlexusTest
-class InvokerMavenExecutorTest {
+class InvokerMavenExecutorTest extends AbstractInjectedTestCase {
 
     @Inject
     private MavenCrypto mavenCrypto;
@@ -54,33 +52,31 @@ class InvokerMavenExecutorTest {
     @Inject
     private SecDispatcher secDispatcher;
 
+    private final SettingsXmlFactory settingsXmlFactory = mock(SettingsXmlFactory.class);
+
     @Test
     void testEncryptSettings() throws Exception {
-        InvokerMavenExecutor executor = new InvokerMavenExecutor(mavenCrypto);
+        InvokerMavenExecutor executor = new InvokerMavenExecutor(mavenCrypto, settingsXmlFactory);
 
         // prepare
         File workingDirectory = getTestFile("target/working-directory");
         workingDirectory.mkdirs();
 
-        Settings settings = new Settings();
-        Server server = new Server();
-        server.setPassphrase("server_passphrase");
-        server.setPassword("server_password");
-        settings.addServer(server);
-        Proxy proxy = new Proxy();
-        proxy.setPassword("proxy_password");
-        settings.addProxy(proxy);
+        Settings settings = Settings.newBuilder()
+                .servers(Collections.singletonList(Server.newBuilder()
+                        .passphrase("server_passphrase")
+                        .password("server_password")
+                        .build()))
+                .proxies(Collections.singletonList(
+                        Proxy.newBuilder().password("proxy_password").build()))
+                .build();
 
-        DefaultReleaseEnvironment releaseEnvironment = new DefaultReleaseEnvironment();
+        DefaultReleaseEnvironment releaseEnvironment = newReleaseEnvironment();
         releaseEnvironment.setSettings(settings);
         releaseEnvironment.setMavenHome(new File(System.getProperty("injectedMavenHome")));
 
         InvokerMavenExecutor executorSpy = spy(executor);
-        SettingsXpp3Writer settingsWriter = mock(SettingsXpp3Writer.class);
-
         ArgumentCaptor<Settings> encryptedSettings = ArgumentCaptor.forClass(Settings.class);
-
-        when(executorSpy.getSettingsWriter()).thenReturn(settingsWriter);
 
         try {
             executorSpy.executeGoals(
@@ -88,7 +84,7 @@ class InvokerMavenExecutorTest {
         } catch (MavenExecutorException e) {
         }
 
-        verify(settingsWriter).write(isA(Writer.class), encryptedSettings.capture());
+        verify(settingsXmlFactory).write(encryptedSettings.capture(), isA(Path.class));
 
         assertNotSame(settings, encryptedSettings.getValue());
 

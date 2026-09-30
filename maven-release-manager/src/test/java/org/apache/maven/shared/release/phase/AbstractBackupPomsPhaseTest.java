@@ -20,37 +20,36 @@ package org.apache.maven.shared.release.phase;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
-import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.model.Model;
+import org.apache.maven.api.services.xml.ModelXmlFactory;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
+import org.apache.maven.shared.release.stubs.TestProject;
 
 /**
  * @author Edwin Punzalan
  */
-abstract class AbstractBackupPomsPhaseTest {
+abstract class AbstractBackupPomsPhaseTest extends AbstractInjectedTestCase {
     private final String pomFilename = "pom.xml";
 
     protected final String releaseBackupSuffix = ".releaseBackup";
 
-    protected List<MavenProject> getReactorProjects(String projectPath) throws Exception {
-        List<MavenProject> reactorProjects = new ArrayList<>();
+    protected List<Project> getReactorProjects(String projectPath) throws Exception {
+        List<Project> reactorProjects = new ArrayList<>();
 
         File pomFile = new File(projectPath, pomFilename);
 
-        MavenProject mainProject = createMavenProject(pomFile);
+        Project mainProject = createMavenProject(pomFile);
 
         reactorProjects.add(mainProject);
 
         for (String module : mainProject.getModel().getModules()) {
             File modulePom = new File(projectPath + "/" + module, pomFilename);
 
-            MavenProject subproject = createMavenProject(modulePom);
+            Project subproject = createMavenProject(modulePom);
 
             reactorProjects.add(subproject);
         }
@@ -58,13 +57,8 @@ abstract class AbstractBackupPomsPhaseTest {
         return reactorProjects;
     }
 
-    private MavenProject createMavenProject(File pomFile) throws IOException, XmlPullParserException {
-        MavenXpp3Reader reader = new MavenXpp3Reader();
-        try (InputStream in = Files.newInputStream(pomFile.toPath())) {
-            Model model = reader.read(in);
-            MavenProject project = new MavenProject(model);
-            project.setFile(pomFile);
-            return project;
-        }
+    private Project createMavenProject(File pomFile) throws IOException {
+        Model model = testSession.getSession().getService(ModelXmlFactory.class).read(pomFile.toPath());
+        return TestProject.of(model, pomFile.toPath());
     }
 }

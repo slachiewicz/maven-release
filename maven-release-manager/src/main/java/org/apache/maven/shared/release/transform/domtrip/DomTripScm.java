@@ -20,14 +20,14 @@ package org.apache.maven.shared.release.transform.domtrip;
 
 import eu.maveniverse.domtrip.Editor;
 import eu.maveniverse.domtrip.Element;
-import org.apache.maven.model.Scm;
+import org.apache.maven.shared.release.transform.PomScm;
 
 /**
  * DomTrip implementation of poms SCM element.
  *
  * @since 3.4
  */
-public class DomTripScm extends Scm {
+public class DomTripScm implements PomScm {
     private final Element scm;
     private final Editor editor;
 
@@ -38,7 +38,7 @@ public class DomTripScm extends Scm {
 
     @Override
     public String getConnection() {
-        throw new UnsupportedOperationException();
+        return scm.childTextTrimmed("connection");
     }
 
     @Override
@@ -48,7 +48,7 @@ public class DomTripScm extends Scm {
 
     @Override
     public String getDeveloperConnection() {
-        throw new UnsupportedOperationException();
+        return scm.childTextTrimmed("developerConnection");
     }
 
     @Override
@@ -58,7 +58,7 @@ public class DomTripScm extends Scm {
 
     @Override
     public String getTag() {
-        throw new UnsupportedOperationException();
+        return scm.childTextTrimmed("tag");
     }
 
     @Override
@@ -68,7 +68,7 @@ public class DomTripScm extends Scm {
 
     @Override
     public String getUrl() {
-        throw new UnsupportedOperationException();
+        return scm.childTextTrimmed("url");
     }
 
     @Override

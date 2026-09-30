@@ -20,7 +20,7 @@ package org.apache.maven.shared.release.phase;
 
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.ReleaseFailureException;
 import org.apache.maven.shared.release.ReleaseResult;
@@ -45,7 +45,7 @@ public abstract class AbstractScmCommitPreparationPhase extends AbstractScmCommi
     protected void runLogic(
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects,
+            List<Project> reactorProjects,
             ReleaseResult result,
             boolean simulating)
             throws ReleaseScmCommandException, ReleaseExecutionException, ReleaseScmRepositoryException {

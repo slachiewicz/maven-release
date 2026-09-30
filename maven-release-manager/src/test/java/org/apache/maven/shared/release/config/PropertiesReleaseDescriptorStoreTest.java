@@ -18,23 +18,23 @@
  */
 package org.apache.maven.shared.release.config;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.model.Scm;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder.BuilderReleaseDescriptor;
 import org.apache.maven.shared.release.phase.AbstractReleaseTestCase;
 import org.apache.maven.shared.release.scm.IdentifiedScm;
-import org.codehaus.plexus.testing.PlexusTest;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
+import org.codehaus.plexus.components.secdispatcher.SecDispatcher;
 import org.junit.jupiter.api.Test;
-import org.sonatype.plexus.components.sec.dispatcher.SecDispatcher;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -47,8 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
-class PropertiesReleaseDescriptorStoreTest {
+class PropertiesReleaseDescriptorStoreTest extends AbstractInjectedTestCase {
 
     @Inject
     @Named("properties")
@@ -187,12 +186,14 @@ class PropertiesReleaseDescriptorStoreTest {
         config.addReleaseVersion("group.id:artifact.id", "1.1");
         config.addDevelopmentVersion("group.id:artifact.id", "1.2-SNAPSHOT");
 
-        IdentifiedScm scm = new IdentifiedScm();
-        scm.setId("id");
-        scm.setConnection("connection");
-        scm.setDeveloperConnection("devConnection");
-        scm.setTag("tag");
-        scm.setUrl("url");
+        IdentifiedScm scm = new IdentifiedScm(
+                Scm.newBuilder()
+                        .connection("connection")
+                        .developerConnection("devConnection")
+                        .url("url")
+                        .tag("tag")
+                        .build(),
+                "id");
         config.addOriginalScmInfo("group.id:artifact.id", scm);
 
         store.write(config.build(), file);
@@ -334,16 +335,17 @@ class PropertiesReleaseDescriptorStoreTest {
         builder.setProjectVersionPolicyConfig(
                 "<projectVersionPolicyConfig><foo>bar</foo></projectVersionPolicyConfig>");
 
-        IdentifiedScm scm = new IdentifiedScm();
-        scm.setId("id-write");
-        scm.setConnection("connection-write");
-        scm.setDeveloperConnection("developerConnection-write");
-        scm.setUrl("url-write");
-        scm.setTag("tag-write");
+        IdentifiedScm scm = new IdentifiedScm(
+                Scm.newBuilder()
+                        .connection("connection-write")
+                        .developerConnection("developerConnection-write")
+                        .url("url-write")
+                        .tag("tag-write")
+                        .build(),
+                "id-write");
         builder.addOriginalScmInfo("groupId:artifactId", scm);
 
-        scm = new IdentifiedScm();
-        scm.setConnection("connection-write");
+        scm = new IdentifiedScm(Scm.newBuilder().connection("connection-write").build(), null);
         // omit optional elements
         builder.addOriginalScmInfo("groupId:subproject1", scm);
 
@@ -454,19 +456,23 @@ class PropertiesReleaseDescriptorStoreTest {
         builder.addReleaseVersion("groupId:artifactId2", "3.0");
         builder.addDevelopmentVersion("groupId:artifactId1", "2.1-SNAPSHOT");
         builder.addDevelopmentVersion("groupId:artifactId2", "3.0.1-SNAPSHOT");
-        IdentifiedScm scm = new IdentifiedScm();
-        scm.setId("id");
-        scm.setConnection("connection");
-        scm.setDeveloperConnection("developerConnection");
-        scm.setUrl("url");
-        scm.setTag("tag");
+        IdentifiedScm scm = new IdentifiedScm(
+                Scm.newBuilder()
+                        .connection("connection")
+                        .developerConnection("developerConnection")
+                        .url("url")
+                        .tag("tag")
+                        .build(),
+                "id");
         builder.addOriginalScmInfo("groupId:artifactId1", scm);
-        scm = new IdentifiedScm();
-        scm.setId(null);
-        scm.setConnection("connection2");
-        scm.setUrl("url2");
-        scm.setTag(null);
-        scm.setDeveloperConnection(null);
+        scm = new IdentifiedScm(
+                Scm.newBuilder()
+                        .connection("connection2")
+                        .developerConnection(null)
+                        .url("url2")
+                        .tag(null)
+                        .build(),
+                null);
         builder.addOriginalScmInfo("groupId:artifactId2", scm);
         builder.addDependencyReleaseVersion("external:artifactId", "1.0");
         builder.addDependencyDevelopmentVersion("external:artifactId", "1.1-SNAPSHOT");

@@ -27,7 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmVersion;
@@ -75,9 +75,7 @@ public abstract class AbstractScmCommitPhase extends AbstractReleasePhase {
 
     @Override
     public ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException {
         ReleaseResult relResult = new ReleaseResult();
 
@@ -98,9 +96,7 @@ public abstract class AbstractScmCommitPhase extends AbstractReleasePhase {
 
     @Override
     public ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException {
         ReleaseResult result = new ReleaseResult();
 
@@ -127,7 +123,7 @@ public abstract class AbstractScmCommitPhase extends AbstractReleasePhase {
     protected abstract void runLogic(
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects,
+            List<Project> reactorProjects,
             ReleaseResult result,
             boolean simulating)
             throws ReleaseScmCommandException, ReleaseExecutionException, ReleaseScmRepositoryException;
@@ -146,7 +142,7 @@ public abstract class AbstractScmCommitPhase extends AbstractReleasePhase {
     protected void performCheckins(
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects,
+            List<Project> reactorProjects,
             String message)
             throws ReleaseScmRepositoryException, ReleaseExecutionException, ReleaseScmCommandException {
 
@@ -170,9 +166,10 @@ public abstract class AbstractScmCommitPhase extends AbstractReleasePhase {
         }
 
         if (releaseDescriptor.isCommitByProject()) {
-            for (MavenProject project : reactorProjects) {
+            for (Project project : reactorProjects) {
                 List<File> pomFiles = createPomFiles(releaseDescriptor, project);
-                ScmFileSet fileSet = new ScmFileSet(project.getFile().getParentFile(), pomFiles);
+                ScmFileSet fileSet =
+                        new ScmFileSet(ReleaseUtil.getPomFile(project).getParentFile(), pomFiles);
 
                 checkin(provider, repository, fileSet, releaseDescriptor, message);
             }
@@ -218,10 +215,7 @@ public abstract class AbstractScmCommitPhase extends AbstractReleasePhase {
      * @param message           a {@link java.lang.String} object
      */
     protected void simulateCheckins(
-            ReleaseDescriptor releaseDescriptor,
-            List<MavenProject> reactorProjects,
-            ReleaseResult result,
-            String message) {
+            ReleaseDescriptor releaseDescriptor, List<Project> reactorProjects, ReleaseResult result, String message) {
         Collection<File> pomFiles = createPomFiles(releaseDescriptor, reactorProjects);
         logInfo(result, "Full run would be commit " + pomFiles.size() + " files with message: '" + message + "'");
     }
@@ -246,7 +240,7 @@ public abstract class AbstractScmCommitPhase extends AbstractReleasePhase {
      * @return a {@link java.lang.String} object
      * @throws org.apache.maven.shared.release.ReleaseExecutionException if any
      */
-    protected String createMessage(List<MavenProject> reactorProjects, ReleaseDescriptor releaseDescriptor)
+    protected String createMessage(List<Project> reactorProjects, ReleaseDescriptor releaseDescriptor)
             throws ReleaseExecutionException {
         String comment;
         boolean branch = false;
@@ -264,7 +258,7 @@ public abstract class AbstractScmCommitPhase extends AbstractReleasePhase {
                     "Invalid configuration of descriptorCommentGetter='" + descriptorCommentGetter + "'");
         }
 
-        MavenProject project = ReleaseUtil.getRootProject(reactorProjects);
+        Project project = ReleaseUtil.getRootProject(reactorProjects);
         comment = comment.replace(
                 "@{prefix}", releaseDescriptor.getScmCommentPrefix().trim());
         comment = comment.replace("@{groupId}", project.getGroupId());
@@ -281,10 +275,10 @@ public abstract class AbstractScmCommitPhase extends AbstractReleasePhase {
      * <p>createPomFiles.</p>
      *
      * @param releaseDescriptor a {@link org.apache.maven.shared.release.config.ReleaseDescriptor} object
-     * @param project           a {@link org.apache.maven.project.MavenProject} object
+     * @param project           a {@link org.apache.maven.api.Project} object
      * @return a {@link java.util.List} object
      */
-    protected static List<File> createPomFiles(ReleaseDescriptor releaseDescriptor, MavenProject project) {
+    protected static List<File> createPomFiles(ReleaseDescriptor releaseDescriptor, Project project) {
         List<File> pomFiles = new ArrayList<>();
 
         pomFiles.add(ReleaseUtil.getStandardPom(project));
@@ -303,12 +297,12 @@ public abstract class AbstractScmCommitPhase extends AbstractReleasePhase {
      * @param reactorProjects   a {@link java.util.List} object
      * @return a {@link java.util.List} object
      */
-    protected List<File> createPomFiles(ReleaseDescriptor releaseDescriptor, List<MavenProject> reactorProjects) {
+    protected List<File> createPomFiles(ReleaseDescriptor releaseDescriptor, List<Project> reactorProjects) {
 
         List<File> pomFiles = new ArrayList<>();
-        for (MavenProject project : reactorProjects) {
+        for (Project project : reactorProjects) {
 
-            final String path = project.getFile().getPath();
+            final String path = ReleaseUtil.getPomFile(project).getPath();
 
             boolean isExcludedPathFound = exclusionPatterns.stream()
                     .anyMatch(exclusionPattern -> FileSystems.getDefault()

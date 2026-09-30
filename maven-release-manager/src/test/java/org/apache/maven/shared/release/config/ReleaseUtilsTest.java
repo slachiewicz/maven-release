@@ -23,10 +23,10 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Properties;
 
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.model.Scm;
+import org.apache.maven.api.model.Scm;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder.BuilderReleaseDescriptor;
 import org.apache.maven.shared.release.phase.AbstractReleaseTestCase;
+import org.apache.maven.shared.release.versions.ArtifactKeys;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -157,18 +157,18 @@ class ReleaseUtilsTest {
         assertNotEquals(configBuilder.build(), origConfig, "Check original comparison");
         configBuilder = copyReleaseDescriptor(origConfig);
 
-        configBuilder.addOriginalScmInfo("groupId:artifactId", new Scm());
+        configBuilder.addOriginalScmInfo("groupId:artifactId", Scm.newInstance());
         assertNotEquals(configBuilder.build(), origConfig, "Check original comparison");
         configBuilder = copyReleaseDescriptor(origConfig);
 
-        configBuilder.addOriginalScmInfo("groupId:artifactId", new Scm());
-        origConfig.addOriginalScmInfo("foo", new Scm());
+        configBuilder.addOriginalScmInfo("groupId:artifactId", Scm.newInstance());
+        origConfig.addOriginalScmInfo("foo", Scm.newInstance());
         assertNotEquals(configBuilder.build(), origConfig, "Check original comparison");
         origConfig = createReleaseDescriptor().build();
         configBuilder = copyReleaseDescriptor(origConfig);
 
-        configBuilder.addOriginalScmInfo("groupId:artifactId", new Scm());
-        origConfig.addOriginalScmInfo("groupId:artifactId", new Scm());
+        configBuilder.addOriginalScmInfo("groupId:artifactId", Scm.newInstance());
+        origConfig.addOriginalScmInfo("groupId:artifactId", Scm.newInstance());
         assertEquals(configBuilder.build(), origConfig, "Check original comparison");
         origConfig = createReleaseDescriptor().build();
         configBuilder = copyReleaseDescriptor(origConfig);
@@ -217,7 +217,7 @@ class ReleaseUtilsTest {
     @Test
     void testLoadResolvedDependencies() {
         Properties properties = new Properties();
-        String dependencyKey = ArtifactUtils.versionlessKey("com.groupId", "artifactId");
+        String dependencyKey = ArtifactKeys.versionlessKey("com.groupId", "artifactId");
         properties.put("dependency." + dependencyKey + ".release", "1.3");
         properties.put("dependency." + dependencyKey + ".development", "1.3-SNAPSHOT");
 
@@ -233,9 +233,9 @@ class ReleaseUtilsTest {
     @Test
     void testArtifactIdEndswithDependency() {
         Properties properties = new Properties();
-        String relDependencyKey = ArtifactUtils.versionlessKey("com.release.magic", "dependency");
+        String relDependencyKey = ArtifactKeys.versionlessKey("com.release.magic", "dependency");
         properties.put("dependency." + relDependencyKey + ".release", "1.3");
-        String devDependencyKey = ArtifactUtils.versionlessKey("com.development.magic", "dependency");
+        String devDependencyKey = ArtifactKeys.versionlessKey("com.development.magic", "dependency");
         properties.put("dependency." + devDependencyKey + ".development", "1.3-SNAPSHOT");
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
@@ -270,12 +270,12 @@ class ReleaseUtilsTest {
     }
 
     private static Scm getScm(String connection, String developerConnection, String url, String tag) {
-        Scm scm = new Scm();
-        scm.setConnection(connection);
-        scm.setDeveloperConnection(developerConnection);
-        scm.setTag(tag);
-        scm.setUrl(url);
-        return scm;
+        return Scm.newBuilder()
+                .connection(connection)
+                .developerConnection(developerConnection)
+                .tag(tag)
+                .url(url)
+                .build();
     }
 
     private static ReleaseDescriptorBuilder createReleaseDescriptor() throws IOException {

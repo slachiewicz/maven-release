@@ -18,22 +18,18 @@
  */
 package org.apache.maven.shared.release.util;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
+import java.io.IOException;
+import java.util.Collections;
 import java.util.Properties;
 
-import org.sonatype.plexus.components.cipher.DefaultPlexusCipher;
-import org.sonatype.plexus.components.cipher.PlexusCipher;
-import org.sonatype.plexus.components.cipher.PlexusCipherException;
-import org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher;
-import org.sonatype.plexus.components.sec.dispatcher.SecDispatcherException;
-import org.sonatype.plexus.components.sec.dispatcher.SecUtil;
-import org.sonatype.plexus.components.sec.dispatcher.model.SettingsSecurity;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.codehaus.plexus.components.secdispatcher.SecDispatcher;
+import org.codehaus.plexus.components.secdispatcher.SecDispatcherException;
 
 /**
- * A shared utility to access {@link DefaultSecDispatcher} service.
+ * A shared utility to access the {@link SecDispatcher} service.
  *
  * @since TBD
  */
@@ -55,23 +51,17 @@ public class MavenCrypto {
         }
     }
 
-    private final DefaultSecDispatcher secDispatcher;
-
-    private final PlexusCipher plexusCipher;
+    private final SecDispatcher secDispatcher;
 
     @Inject
-    public MavenCrypto(DefaultSecDispatcher secDispatcher, PlexusCipher plexusCipher) {
+    public MavenCrypto(SecDispatcher secDispatcher) {
         this.secDispatcher = secDispatcher;
-        this.plexusCipher = plexusCipher;
-
-        // Adjust the default path (def path != maven path)
-        this.secDispatcher.setConfigurationFile("~/.m2/settings-security.xml");
     }
 
     public String decrypt(String value) throws MavenCryptoException {
         try {
             return secDispatcher.decrypt(value);
-        } catch (SecDispatcherException e) {
+        } catch (SecDispatcherException | IOException e) {
             throw new MavenCryptoException("decrypt failed", e);
         }
     }
@@ -82,63 +72,25 @@ public class MavenCrypto {
         for (String key : keys) {
             String value = properties.getProperty(key);
             if (value != null) {
-                properties.put(key, decryptDecorated(value));
+                properties.put(key, decrypt(value));
             }
         }
     }
 
+    /**
+     * Encrypts with the {@code master} dispatcher of the security configuration. Unlike the Maven 3 based
+     * implementation this needs a Maven 4 style security configuration: the legacy dispatcher can only decrypt.
+     */
     public String encryptAndDecorate(String passwd) throws MavenCryptoException {
         try {
-            final String master = getMaster();
-
-            DefaultPlexusCipher cipher = new DefaultPlexusCipher();
-            String masterPasswd = cipher.decryptDecorated(master, DefaultSecDispatcher.SYSTEM_PROPERTY_SEC_LOCATION);
-            return cipher.encryptAndDecorate(passwd, masterPasswd);
-        } catch (PlexusCipherException e) {
+            return secDispatcher.encrypt(
+                    passwd, Collections.singletonMap(SecDispatcher.DISPATCHER_NAME_ATTR, "master"));
+        } catch (SecDispatcherException | IOException e) {
             throw new MavenCryptoException("encrypt failed", e);
         }
     }
 
     public boolean isEncryptedString(String str) {
-        return plexusCipher.isEncryptedString(str);
-    }
-
-    private String decryptDecorated(String value) throws MavenCryptoException {
-        try {
-            final String master = getMaster();
-
-            DefaultPlexusCipher cipher = new DefaultPlexusCipher();
-            String masterPasswd = cipher.decryptDecorated(master, DefaultSecDispatcher.SYSTEM_PROPERTY_SEC_LOCATION);
-            return cipher.decryptDecorated(value, masterPasswd);
-        } catch (PlexusCipherException e) {
-            throw new MavenCryptoException("decrypt failed", e);
-        }
-    }
-
-    private String getMaster() throws MavenCryptoException {
-        String configurationFile = secDispatcher.getConfigurationFile();
-
-        if (configurationFile.startsWith("~")) {
-            configurationFile = System.getProperty("user.home") + configurationFile.substring(1);
-        }
-
-        String file = System.getProperty(DefaultSecDispatcher.SYSTEM_PROPERTY_SEC_LOCATION, configurationFile);
-
-        String master = null;
-
-        try {
-            SettingsSecurity sec = SecUtil.read(file, true);
-            if (sec != null) {
-                master = sec.getMaster();
-            }
-        } catch (SecDispatcherException e) {
-            throw new MavenCryptoException("config file read failed", e);
-        }
-
-        if (master == null) {
-            throw new MavenCryptoException("Master password is not set in the setting security file: " + file);
-        }
-
-        return master;
+        return secDispatcher.isAnyEncryptedString(str);
     }
 }

@@ -18,35 +18,37 @@
  */
 package org.apache.maven.shared.release.exec;
 
-import javax.inject.Inject;
-
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.maven.settings.Proxy;
-import org.apache.maven.settings.Server;
-import org.apache.maven.settings.Settings;
-import org.apache.maven.settings.io.xpp3.SettingsXpp3Writer;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.services.xml.SettingsXmlFactory;
+import org.apache.maven.api.settings.Proxy;
+import org.apache.maven.api.settings.Server;
+import org.apache.maven.api.settings.Settings;
+import org.apache.maven.impl.DefaultSettingsXmlFactory;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
 import org.apache.maven.shared.release.util.MavenCrypto;
-import org.codehaus.plexus.testing.PlexusTest;
+import org.codehaus.plexus.components.secdispatcher.SecDispatcher;
 import org.codehaus.plexus.util.cli.Arg;
 import org.codehaus.plexus.util.cli.CommandLineException;
 import org.codehaus.plexus.util.cli.Commandline;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.sonatype.plexus.components.sec.dispatcher.SecDispatcher;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.endsWith;
@@ -64,14 +66,15 @@ import static org.mockito.Mockito.when;
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
-class ForkedMavenExecutorTest {
+class ForkedMavenExecutorTest extends AbstractInjectedTestCase {
 
     @Inject
     private MavenCrypto mavenCrypto;
 
     @Inject
     private SecDispatcher secDispatcher;
+
+    private final SettingsXmlFactory settingsXmlFactory = mock(SettingsXmlFactory.class);
 
     @Test
     void testExecution() throws Exception {
@@ -93,13 +96,13 @@ class ForkedMavenExecutorTest {
         when(commandLineFactoryMock.createCommandLine(isA(String.class) /*"mvn"*/))
                 .thenReturn(commandLineMock);
 
-        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, commandLineFactoryMock);
+        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, settingsXmlFactory, commandLineFactoryMock);
 
         // execute
         executor.executeGoals(
                 workingDirectory,
                 "clean integration-test",
-                new DefaultReleaseEnvironment(),
+                newReleaseEnvironment(),
                 false,
                 null,
                 null,
@@ -141,13 +144,13 @@ class ForkedMavenExecutorTest {
         when(commandLineFactoryMock.createCommandLine(isA(String.class) /* "mvn" */))
                 .thenReturn(commandLineMock);
 
-        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, commandLineFactoryMock);
+        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, settingsXmlFactory, commandLineFactoryMock);
 
         // execute
         executor.executeGoals(
                 workingDirectory,
                 "clean integration-test",
-                new DefaultReleaseEnvironment(),
+                newReleaseEnvironment(),
                 false,
                 null,
                 "my-pom.xml",
@@ -189,14 +192,14 @@ class ForkedMavenExecutorTest {
         CommandLineFactory commandLineFactoryMock = mock(CommandLineFactory.class);
         when(commandLineFactoryMock.createCommandLine(endsWith("mvn"))).thenReturn(commandLineMock);
 
-        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, commandLineFactoryMock);
+        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, settingsXmlFactory, commandLineFactoryMock);
 
         // execute
         String arguments = "-DperformRelease=true -Dmaven.test.skip=true";
         executor.executeGoals(
                 workingDirectory,
                 "clean integration-test",
-                new DefaultReleaseEnvironment(),
+                newReleaseEnvironment(),
                 false,
                 arguments,
                 null,
@@ -240,14 +243,14 @@ class ForkedMavenExecutorTest {
         CommandLineFactory commandLineFactoryMock = mock(CommandLineFactory.class);
         when(commandLineFactoryMock.createCommandLine(endsWith("mvn"))).thenReturn(commandLineMock);
 
-        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, commandLineFactoryMock);
+        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, settingsXmlFactory, commandLineFactoryMock);
 
         // execute
         try {
             executor.executeGoals(
                     workingDirectory,
                     "clean integration-test",
-                    new DefaultReleaseEnvironment(),
+                    newReleaseEnvironment(),
                     false,
                     null,
                     null,
@@ -290,14 +293,14 @@ class ForkedMavenExecutorTest {
         CommandLineFactory commandLineFactoryMock = mock(CommandLineFactory.class);
         when(commandLineFactoryMock.createCommandLine(endsWith("mvn"))).thenReturn(commandLineMock);
 
-        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, commandLineFactoryMock);
+        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, settingsXmlFactory, commandLineFactoryMock);
 
         // execute
         try {
             executor.executeGoals(
                     workingDirectory,
                     "clean integration-test",
-                    new DefaultReleaseEnvironment(),
+                    newReleaseEnvironment(),
                     false,
                     null,
                     null,
@@ -353,18 +356,12 @@ class ForkedMavenExecutorTest {
         CommandLineFactory commandLineFactoryMock = mock(CommandLineFactory.class);
         when(commandLineFactoryMock.createCommandLine(isA(String.class))).thenReturn(commandLineMock);
 
-        ForkedMavenExecutor executor = spy(new ForkedMavenExecutor(mavenCrypto, commandLineFactoryMock));
-        SettingsXpp3Writer settingsWriter = mock(SettingsXpp3Writer.class);
-        doAnswer(invocation -> {
-                    invocation.<Writer>getArgument(0).write("<settings>" + nonAscii + "</settings>");
-                    return null;
-                })
-                .when(settingsWriter)
-                .write(isA(Writer.class), isA(Settings.class));
-        when(executor.getSettingsWriter()).thenReturn(settingsWriter);
+        ForkedMavenExecutor executor =
+                new ForkedMavenExecutor(mavenCrypto, new DefaultSettingsXmlFactory(), commandLineFactoryMock);
 
-        DefaultReleaseEnvironment releaseEnvironment = new DefaultReleaseEnvironment();
-        releaseEnvironment.setSettings(new Settings());
+        DefaultReleaseEnvironment releaseEnvironment = newReleaseEnvironment();
+        releaseEnvironment.setSettings(
+                Settings.newBuilder().localRepository(nonAscii).build());
 
         executor.executeGoals(
                 getTestFile("target/working-directory"),
@@ -375,7 +372,8 @@ class ForkedMavenExecutorTest {
                 null,
                 new ReleaseResult());
 
-        assertEquals("<settings>" + nonAscii + "</settings>", new String(written.get(), StandardCharsets.UTF_8));
+        String xml = new String(written.get(), StandardCharsets.UTF_8);
+        assertTrue(xml.contains("<localRepository>" + nonAscii + "</localRepository>"), xml);
     }
 
     @Test
@@ -398,31 +396,27 @@ class ForkedMavenExecutorTest {
         when(commandLineFactoryMock.createCommandLine(isA(String.class) /* "mvn" */))
                 .thenReturn(commandLineMock);
 
-        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, commandLineFactoryMock);
+        ForkedMavenExecutor executor = new ForkedMavenExecutor(mavenCrypto, settingsXmlFactory, commandLineFactoryMock);
 
-        Settings settings = new Settings();
-        Server server = new Server();
-        server.setPassphrase("server_passphrase");
-        server.setPassword("server_password");
-        settings.addServer(server);
-        Proxy proxy = new Proxy();
-        proxy.setPassword("proxy_password");
-        settings.addProxy(proxy);
+        Settings settings = Settings.newBuilder()
+                .servers(Collections.singletonList(Server.newBuilder()
+                        .passphrase("server_passphrase")
+                        .password("server_password")
+                        .build()))
+                .proxies(Collections.singletonList(
+                        Proxy.newBuilder().password("proxy_password").build()))
+                .build();
 
-        DefaultReleaseEnvironment releaseEnvironment = new DefaultReleaseEnvironment();
+        DefaultReleaseEnvironment releaseEnvironment = newReleaseEnvironment();
         releaseEnvironment.setSettings(settings);
 
         AbstractMavenExecutor executorSpy = spy(executor);
-        SettingsXpp3Writer settingsWriter = mock(SettingsXpp3Writer.class);
-
         ArgumentCaptor<Settings> encryptedSettings = ArgumentCaptor.forClass(Settings.class);
-
-        when(executorSpy.getSettingsWriter()).thenReturn(settingsWriter);
 
         executorSpy.executeGoals(
                 workingDirectory, "validate", releaseEnvironment, false, null, null, new ReleaseResult());
 
-        verify(settingsWriter).write(isA(Writer.class), encryptedSettings.capture());
+        verify(settingsXmlFactory).write(encryptedSettings.capture(), isA(Path.class));
 
         assertNotSame(settings, encryptedSettings.getValue());
 

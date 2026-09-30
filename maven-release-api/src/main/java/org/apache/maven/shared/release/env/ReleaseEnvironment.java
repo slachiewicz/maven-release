@@ -20,7 +20,8 @@ package org.apache.maven.shared.release.env;
 
 import java.io.File;
 
-import org.apache.maven.settings.Settings;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.settings.Settings;
 
 /**
  * <p>ReleaseEnvironment interface.</p>
@@ -47,9 +48,17 @@ public interface ReleaseEnvironment {
     /**
      * <p>getSettings.</p>
      *
-     * @return a {@link org.apache.maven.settings.Settings} object
+     * @return a {@link org.apache.maven.api.settings.Settings} object
      */
     Settings getSettings();
+
+    /**
+     * The Maven 4 API session of the build that runs the release. Phases need it to collect dependencies
+     * of a {@link org.apache.maven.api.Project}, which the API only offers through {@link Session}.
+     *
+     * @return the current session
+     */
+    Session getSession();
 
     /**
      * <p>getMavenHome.</p>

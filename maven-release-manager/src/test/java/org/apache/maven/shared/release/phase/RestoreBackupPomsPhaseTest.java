@@ -18,30 +18,26 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.io.File;
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.util.ReleaseUtil;
-import org.codehaus.plexus.testing.PlexusTest;
 import org.codehaus.plexus.util.FileUtils;
 import org.junit.jupiter.api.Test;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
-import static org.codehaus.plexus.testing.PlexusExtension.getTestPath;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestPath;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author Edwin Punzalan
  */
-@PlexusTest
 class RestoreBackupPomsPhaseTest extends AbstractBackupPomsPhaseTest {
     private String expectedPomFilename = "expected-pom.xml";
 
@@ -78,18 +74,18 @@ class RestoreBackupPomsPhaseTest extends AbstractBackupPomsPhaseTest {
     }
 
     private void runExecuteOnProjects(String path) throws Exception {
-        List<MavenProject> projects = getReactorProjects(getTestPath(path));
+        List<Project> projects = getReactorProjects(getTestPath(path));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setScmSourceUrl("scm:svn:http://myhost/myrepo");
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), projects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), projects);
 
         testProjectIsRestored(projects);
     }
 
-    private void testProjectIsRestored(List<MavenProject> reactorProjects) throws Exception {
-        for (MavenProject project : reactorProjects) {
-            File pomFile = project.getFile();
+    private void testProjectIsRestored(List<Project> reactorProjects) throws Exception {
+        for (Project project : reactorProjects) {
+            File pomFile = ReleaseUtil.getPomFile(project);
 
             File expectedFile = new File(pomFile.getParentFile(), expectedPomFilename);
 

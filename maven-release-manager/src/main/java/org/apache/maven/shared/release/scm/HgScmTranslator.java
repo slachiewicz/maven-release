@@ -18,8 +18,8 @@
  */
 package org.apache.maven.shared.release.scm;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 
 /**
  * <p>HgScmTranslator class.</p>

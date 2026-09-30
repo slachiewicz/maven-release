@@ -18,20 +18,17 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.io.File;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
 import org.apache.maven.shared.release.util.ReleaseUtil;
-import org.codehaus.plexus.testing.PlexusTest;
 import org.junit.jupiter.api.Test;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestPath;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestPath;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,7 +36,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * @author Edwin Punzalan
  */
-@PlexusTest
 class CreateBackupPomsPhaseTest extends AbstractBackupPomsPhaseTest {
 
     @Inject
@@ -75,34 +71,34 @@ class CreateBackupPomsPhaseTest extends AbstractBackupPomsPhaseTest {
     }
 
     private void runExecuteOnProjects(String path) throws Exception {
-        List<MavenProject> projects = getReactorProjects(getTestPath(path));
+        List<Project> projects = getReactorProjects(getTestPath(path));
 
-        phase.execute(null, new DefaultReleaseEnvironment(), projects);
+        phase.execute(null, newReleaseEnvironment(), projects);
 
         testProjectBackups(projects, true);
     }
 
     private void runSimulateOnProjects(String path) throws Exception {
-        List<MavenProject> projects = getReactorProjects(getTestPath(path));
+        List<Project> projects = getReactorProjects(getTestPath(path));
 
-        phase.simulate(null, new DefaultReleaseEnvironment(), projects);
+        phase.simulate(null, newReleaseEnvironment(), projects);
 
         testProjectBackups(projects, true);
     }
 
     private void runCleanOnProjects(String path) throws Exception {
-        List<MavenProject> projects = getReactorProjects(getTestPath(path));
+        List<Project> projects = getReactorProjects(getTestPath(path));
 
         ((ResourceGenerator) phase).clean(projects);
 
         testProjectBackups(projects, false);
     }
 
-    protected void testProjectBackups(List<MavenProject> reactorProjects, boolean created) throws Exception {
-        for (Iterator<MavenProject> projects = reactorProjects.iterator(); projects.hasNext(); ) {
-            MavenProject project = projects.next();
+    protected void testProjectBackups(List<Project> reactorProjects, boolean created) throws Exception {
+        for (Iterator<Project> projects = reactorProjects.iterator(); projects.hasNext(); ) {
+            Project project = projects.next();
 
-            File pomFile = project.getFile();
+            File pomFile = ReleaseUtil.getPomFile(project);
 
             File backupFile = new File(pomFile.getAbsolutePath() + releaseBackupSuffix);
 

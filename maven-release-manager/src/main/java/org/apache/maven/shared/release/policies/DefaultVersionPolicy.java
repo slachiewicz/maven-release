@@ -18,9 +18,8 @@
  */
 package org.apache.maven.shared.release.policies;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.shared.release.policy.version.VersionPolicy;
 import org.apache.maven.shared.release.policy.version.VersionPolicyRequest;
 import org.apache.maven.shared.release.policy.version.VersionPolicyResult;
@@ -34,7 +33,7 @@ import org.apache.maven.shared.release.versions.VersionParseException;
  * @author Robert Scholte
  */
 @Singleton
-@Named
+@Named("default")
 public class DefaultVersionPolicy implements VersionPolicy {
     @Override
     public VersionPolicyResult getReleaseVersion(VersionPolicyRequest request) throws VersionParseException {

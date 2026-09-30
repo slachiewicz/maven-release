@@ -20,7 +20,7 @@ package org.apache.maven.shared.release.phase;
 
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.ReleaseFailureException;
 import org.apache.maven.shared.release.ReleaseResult;
@@ -44,9 +44,7 @@ public interface ReleasePhase {
      * @throws ReleaseFailureException   a failure during the execution of the phase
      */
     ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException;
 
     /**
@@ -60,8 +58,6 @@ public interface ReleasePhase {
      * @throws ReleaseFailureException   a failure during the execution of the phase
      */
     ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException;
 }

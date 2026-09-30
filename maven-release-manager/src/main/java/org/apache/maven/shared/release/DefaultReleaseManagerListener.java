@@ -20,7 +20,7 @@ package org.apache.maven.shared.release;
 
 import java.util.List;
 
-import org.apache.maven.plugin.logging.Log;
+import org.slf4j.Logger;
 
 import static org.apache.maven.shared.utils.logging.MessageUtils.buffer;
 
@@ -30,7 +30,7 @@ import static org.apache.maven.shared.utils.logging.MessageUtils.buffer;
  * @author Hervé Boutemy
  */
 public class DefaultReleaseManagerListener implements ReleaseManagerListener {
-    private final Log log;
+    private final Logger log;
 
     private final boolean dryRun;
 
@@ -43,19 +43,19 @@ public class DefaultReleaseManagerListener implements ReleaseManagerListener {
     /**
      * <p>Constructor for DefaultReleaseManagerListener.</p>
      *
-     * @param log a {@link org.apache.maven.plugin.logging.Log} object
+     * @param log a {@link org.slf4j.Logger} object
      */
-    public DefaultReleaseManagerListener(Log log) {
+    public DefaultReleaseManagerListener(Logger log) {
         this(log, false);
     }
 
     /**
      * <p>Constructor for DefaultReleaseManagerListener.</p>
      *
-     * @param log a {@link org.apache.maven.plugin.logging.Log} object
+     * @param log a {@link org.slf4j.Logger} object
      * @param dryRun a boolean
      */
-    public DefaultReleaseManagerListener(Log log, boolean dryRun) {
+    public DefaultReleaseManagerListener(Logger log, boolean dryRun) {
         this.log = log;
         this.dryRun = dryRun;
     }

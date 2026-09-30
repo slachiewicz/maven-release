@@ -18,10 +18,10 @@
  */
 package org.apache.maven.shared.release.scm;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
+
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 
 /**
  * Jazz tag translator.

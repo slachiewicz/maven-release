@@ -18,39 +18,17 @@
  */
 package org.apache.maven.shared.release.transform.domtrip;
 
-import java.util.List;
-
 import eu.maveniverse.domtrip.Editor;
 import eu.maveniverse.domtrip.Element;
-import org.apache.maven.model.BuildBase;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.DependencyManagement;
-import org.apache.maven.model.Profile;
+import org.apache.maven.shared.release.transform.PomProfile;
 
 /**
  * DomTrip implementation of poms PROFILE element.
  *
  * @since 3.4
  */
-public class DomTripProfile extends Profile {
-    private final DomTripModelBase modelBase;
-
+public class DomTripProfile extends DomTripModelBase implements PomProfile {
     public DomTripProfile(Element profile, Editor editor) {
-        this.modelBase = new DomTripModelBase(profile, editor);
-    }
-
-    @Override
-    public BuildBase getBuild() {
-        return modelBase.getBuild();
-    }
-
-    @Override
-    public List<Dependency> getDependencies() {
-        return modelBase.getDependencies();
-    }
-
-    @Override
-    public DependencyManagement getDependencyManagement() {
-        return modelBase.getDependencyManagement();
+        super(profile, editor);
     }
 }

@@ -18,20 +18,19 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.util.Collections;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.model.Scm;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.model.Model;
+import org.apache.maven.api.model.Scm;
 import org.apache.maven.shared.release.ReleaseFailureException;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.scm.ReleaseScmRepositoryException;
-import org.codehaus.plexus.testing.PlexusTest;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
+import org.apache.maven.shared.release.stubs.TestProject;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,8 +42,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
-class CheckPomPhaseTest {
+class CheckPomPhaseTest extends AbstractInjectedTestCase {
     @Inject
     @Named("check-poms")
     private ReleasePhase phase;
@@ -56,12 +54,12 @@ class CheckPomPhaseTest {
 
         phase.execute(
                 ReleaseUtils.buildReleaseDescriptor(builder),
-                new DefaultReleaseEnvironment(),
+                newReleaseEnvironment(),
                 Collections.singletonList(createProject("1.0-SNAPSHOT")));
 
         phase.simulate(
                 ReleaseUtils.buildReleaseDescriptor(builder),
-                new DefaultReleaseEnvironment(),
+                newReleaseEnvironment(),
                 Collections.singletonList(createProject("1.0-SNAPSHOT")));
 
         // successful execution is verification enough
@@ -73,11 +71,11 @@ class CheckPomPhaseTest {
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setScmSourceUrl("scm:svn:file://localhost/tmp/repo");
 
-        MavenProject project = createProject("1.0-SNAPSHOT");
+        Project project = createProject("1.0-SNAPSHOT");
 
         phase.execute(
                 ReleaseUtils.buildReleaseDescriptor(builder),
-                new DefaultReleaseEnvironment(),
+                newReleaseEnvironment(),
                 Collections.singletonList(project));
 
         assertEquals(
@@ -91,11 +89,11 @@ class CheckPomPhaseTest {
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setScmSourceUrl("scm:svn:file://localhost/tmp/repo");
 
-        MavenProject project = createProject("1.0-SNAPSHOT");
+        Project project = createProject("1.0-SNAPSHOT");
 
         phase.simulate(
                 ReleaseUtils.buildReleaseDescriptor(builder),
-                new DefaultReleaseEnvironment(),
+                newReleaseEnvironment(),
                 Collections.singletonList(project));
 
         assertEquals(
@@ -109,11 +107,11 @@ class CheckPomPhaseTest {
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setScmSourceUrl("scm:svn:https://localhost/tmp/repo");
 
-        MavenProject project = createProject("1.0-SNAPSHOT");
+        Project project = createProject("1.0-SNAPSHOT");
 
         phase.execute(
                 ReleaseUtils.buildReleaseDescriptor(builder),
-                new DefaultReleaseEnvironment(),
+                newReleaseEnvironment(),
                 Collections.singletonList(project));
 
         assertEquals(
@@ -127,11 +125,11 @@ class CheckPomPhaseTest {
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setScmSourceUrl("scm:svn:https://localhost/tmp/repo");
 
-        MavenProject project = createProject("1.0-SNAPSHOT");
+        Project project = createProject("1.0-SNAPSHOT");
 
         phase.simulate(
                 ReleaseUtils.buildReleaseDescriptor(builder),
-                new DefaultReleaseEnvironment(),
+                newReleaseEnvironment(),
                 Collections.singletonList(project));
 
         assertEquals(
@@ -145,12 +143,12 @@ class CheckPomPhaseTest {
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setScmSourceUrl("scm:svn:");
 
-        MavenProject project = createProject("1.0-SNAPSHOT");
+        Project project = createProject("1.0-SNAPSHOT");
 
         try {
             phase.execute(
                     ReleaseUtils.buildReleaseDescriptor(builder),
-                    new DefaultReleaseEnvironment(),
+                    newReleaseEnvironment(),
                     Collections.singletonList(project));
 
             fail("Should have thrown an exception");
@@ -162,15 +160,13 @@ class CheckPomPhaseTest {
     @Test
     void testGetInvalidProvider() throws Exception {
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
-        MavenProject project = createProject("1.0-SNAPSHOT");
-        Scm scm = new Scm();
-        scm.setConnection("scm:foo:");
-        project.setScm(scm);
+        Project project = createProject(
+                "1.0-SNAPSHOT", Scm.newBuilder().connection("scm:foo:").build());
 
         try {
             phase.execute(
                     ReleaseUtils.buildReleaseDescriptor(builder),
-                    new DefaultReleaseEnvironment(),
+                    newReleaseEnvironment(),
                     Collections.singletonList(project));
 
             fail("Should have thrown an exception");
@@ -186,7 +182,7 @@ class CheckPomPhaseTest {
         try {
             phase.execute(
                     ReleaseUtils.buildReleaseDescriptor(builder),
-                    new DefaultReleaseEnvironment(),
+                    newReleaseEnvironment(),
                     Collections.singletonList(createProject("1.0-SNAPSHOT")));
 
             fail("Should have failed to execute");
@@ -197,7 +193,7 @@ class CheckPomPhaseTest {
         try {
             phase.simulate(
                     ReleaseUtils.buildReleaseDescriptor(builder),
-                    new DefaultReleaseEnvironment(),
+                    newReleaseEnvironment(),
                     Collections.singletonList(createProject("1.0-SNAPSHOT")));
 
             fail("Should have failed to simulate");
@@ -214,7 +210,7 @@ class CheckPomPhaseTest {
         try {
             phase.execute(
                     ReleaseUtils.buildReleaseDescriptor(builder),
-                    new DefaultReleaseEnvironment(),
+                    newReleaseEnvironment(),
                     Collections.singletonList(createProject("1.0")));
 
             fail("Should have failed to execute");
@@ -225,7 +221,7 @@ class CheckPomPhaseTest {
         try {
             phase.simulate(
                     ReleaseUtils.buildReleaseDescriptor(builder),
-                    new DefaultReleaseEnvironment(),
+                    newReleaseEnvironment(),
                     Collections.singletonList(createProject("1.0")));
 
             fail("Should have failed to simulate");
@@ -234,13 +230,18 @@ class CheckPomPhaseTest {
         }
     }
 
-    private static MavenProject createProject(String version) {
-        Model model = new Model();
+    private static Project createProject(String version) {
+        return createProject(version, null);
+    }
 
-        model.setArtifactId("artifactId");
-        model.setGroupId("groupId");
-        model.setVersion(version);
+    private static Project createProject(String version, Scm scm) {
+        Model model = Model.newBuilder()
+                .artifactId("artifactId")
+                .groupId("groupId")
+                .version(version)
+                .scm(scm)
+                .build();
 
-        return new MavenProject(model);
+        return TestProject.of(model);
     }
 }

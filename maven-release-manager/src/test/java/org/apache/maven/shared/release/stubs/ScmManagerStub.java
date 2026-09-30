@@ -18,15 +18,14 @@
  */
 package org.apache.maven.shared.release.stubs;
 
-import javax.inject.Singleton;
-
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.maven.api.di.Priority;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.scm.manager.NoSuchScmProviderException;
 import org.apache.maven.scm.repository.ScmRepository;
 import org.apache.maven.scm.repository.ScmRepositoryException;
-import org.eclipse.sisu.Priority;
 
 /**
  * Override the makeRepository methods to honour the URL passed in.

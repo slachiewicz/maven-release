@@ -26,6 +26,11 @@ under the License.
   <artifactId>artifactId</artifactId>
   <version>1.0</version>
   <packaging>pom</packaging>
+  <properties>
+    <project.build.outputTimestamp>1980-02-01T00:00:00Z</project.build.outputTimestamp>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
   <build>
     <sourceDirectory>${project.basedir}/src/main/java</sourceDirectory>
     <scriptSourceDirectory>${project.basedir}/src/main/scripts</scriptSourceDirectory>
@@ -51,22 +56,6 @@ under the License.
     <module>subproject3</module>
     <module>subproject4</module>
   </modules>
-  <repositories>
-    <repository>
-      <id>central</id>
-      <url>${remoterepo}</url>
-    </repository>
-  </repositories>
-  <pluginRepositories>
-    <pluginRepository>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <id>central</id>
-      <name>Central Repository</name>
-      <url>https://repo.maven.apache.org/maven2</url>
-    </pluginRepository>
-  </pluginRepositories>
   <reporting>
     <outputDirectory>target/site</outputDirectory>
   </reporting>

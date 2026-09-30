@@ -18,9 +18,8 @@
  */
 package org.apache.maven.shared.release.policy.semver;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.shared.release.policy.version.VersionPolicyRequest;
 import org.apache.maven.shared.release.policy.version.VersionPolicyResult;
 import org.apache.maven.shared.release.versions.VersionParseException;

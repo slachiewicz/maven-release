@@ -18,23 +18,21 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.services.Prompter;
+import org.apache.maven.api.services.PrompterException;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.policy.naming.NamingPolicy;
 import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
-import org.codehaus.plexus.components.interactivity.Prompter;
-import org.codehaus.plexus.components.interactivity.PrompterException;
-import org.codehaus.plexus.testing.PlexusTest;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
+import org.apache.maven.shared.release.stubs.TestProject;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -54,8 +52,7 @@ import static org.mockito.Mockito.when;
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
-class InputVariablesPhaseTest {
+class InputVariablesPhaseTest extends AbstractInjectedTestCase {
     private InputVariablesPhase phase;
 
     @Inject
@@ -72,14 +69,14 @@ class InputVariablesPhaseTest {
                 .thenReturn("tag-value", "simulated-tag-value");
         phase = new InputVariablesPhase(mockPrompter, scmRepositoryConfigurator, namingPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.addReleaseVersion("groupId:artifactId", "1.0");
         builder.setScmSourceUrl("scm:svn:file://localhost/tmp/scm-repo");
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals("tag-value", ReleaseUtils.buildReleaseDescriptor(builder).getScmReleaseLabel(), "Check tag");
@@ -90,7 +87,7 @@ class InputVariablesPhaseTest {
         builder.setScmSourceUrl("scm:svn:file://localhost/tmp/scm-repo");
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -104,7 +101,7 @@ class InputVariablesPhaseTest {
 
     @Test
     void testUnmappedVersion() {
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
 
@@ -112,8 +109,7 @@ class InputVariablesPhaseTest {
         phase = new InputVariablesPhase(mockPrompter, scmRepositoryConfigurator, namingPolicies);
 
         try {
-            phase.execute(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
             fail("Expected an exception");
         } catch (ReleaseExecutionException e) {
@@ -123,8 +119,7 @@ class InputVariablesPhaseTest {
         builder = new ReleaseDescriptorBuilder();
 
         try {
-            phase.simulate(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
             fail("Expected an exception");
         } catch (ReleaseExecutionException e) {
@@ -138,7 +133,7 @@ class InputVariablesPhaseTest {
         Prompter mockPrompter = mock(Prompter.class);
         phase = new InputVariablesPhase(mockPrompter, scmRepositoryConfigurator, namingPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
@@ -146,7 +141,7 @@ class InputVariablesPhaseTest {
         builder.setScmSourceUrl("scm:svn:file://localhost/tmp/scm-repo");
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -159,7 +154,7 @@ class InputVariablesPhaseTest {
         builder.setScmSourceUrl("scm:svn:file://localhost/tmp/scm-repo");
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -175,14 +170,14 @@ class InputVariablesPhaseTest {
         Prompter mockPrompter = mock(Prompter.class);
         phase = new InputVariablesPhase(mockPrompter, scmRepositoryConfigurator, namingPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
         builder.setScmReleaseLabel("tag-value");
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals("tag-value", ReleaseUtils.buildReleaseDescriptor(builder).getScmReleaseLabel(), "Check tag");
@@ -193,7 +188,7 @@ class InputVariablesPhaseTest {
         builder.setScmReleaseLabel("simulated-tag-value");
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -211,13 +206,13 @@ class InputVariablesPhaseTest {
         Prompter mockPrompter = mock(Prompter.class);
         phase = new InputVariablesPhase(mockPrompter, scmRepositoryConfigurator, namingPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setScmReleaseLabel("tag-value");
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals("tag-value", ReleaseUtils.buildReleaseDescriptor(builder).getScmReleaseLabel(), "Check tag");
@@ -227,7 +222,7 @@ class InputVariablesPhaseTest {
         builder.setScmReleaseLabel("simulated-tag-value");
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -246,7 +241,7 @@ class InputVariablesPhaseTest {
         when(mockPrompter.prompt(isA(String.class), isA(String.class))).thenThrow(new PrompterException("..."));
         phase = new InputVariablesPhase(mockPrompter, scmRepositoryConfigurator, namingPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.addReleaseVersion("groupId:artifactId", "1.0");
@@ -254,8 +249,7 @@ class InputVariablesPhaseTest {
 
         // execute
         try {
-            phase.execute(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
             fail("Expected an exception");
         } catch (ReleaseExecutionException e) {
@@ -269,8 +263,7 @@ class InputVariablesPhaseTest {
 
         // execute
         try {
-            phase.simulate(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
             fail("Expected an exception");
         } catch (ReleaseExecutionException e) {
@@ -289,7 +282,7 @@ class InputVariablesPhaseTest {
         Prompter mockPrompter = mock(Prompter.class);
         phase = new InputVariablesPhase(mockPrompter, scmRepositoryConfigurator, namingPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
@@ -297,7 +290,7 @@ class InputVariablesPhaseTest {
         builder.setScmSourceUrl("scm:svn:svn://localhost/repo");
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -310,7 +303,7 @@ class InputVariablesPhaseTest {
         builder.setScmSourceUrl("scm:svn:svn://localhost/repo");
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -327,14 +320,14 @@ class InputVariablesPhaseTest {
         Prompter mockPrompter = mock(Prompter.class);
         phase = new InputVariablesPhase(mockPrompter, scmRepositoryConfigurator, namingPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
         builder.addReleaseVersion("groupId:artifactId", "1.0");
         builder.setScmSourceUrl("scm:svn:file://localhost/tmp/scm-repo");
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -348,7 +341,7 @@ class InputVariablesPhaseTest {
         builder.setScmTagNameFormat("simulated-@{artifactId}-@{version}");
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -368,11 +361,7 @@ class InputVariablesPhaseTest {
         assertFalse(phase.isBranchOperation());
     }
 
-    private static MavenProject createProject(String artifactId, String version) {
-        Model model = new Model();
-        model.setGroupId("groupId");
-        model.setArtifactId(artifactId);
-        model.setVersion(version);
-        return new MavenProject(model);
+    private static Project createProject(String artifactId, String version) {
+        return TestProject.of("groupId", artifactId, version);
     }
 }

@@ -20,7 +20,7 @@ package org.apache.maven.shared.release.phase;
 
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
 import org.apache.maven.shared.release.env.ReleaseEnvironment;
@@ -48,9 +48,7 @@ public class ReleasePhaseStub implements ReleasePhase, ResourceGenerator {
 
     @Override
     public ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects) {
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects) {
         ReleaseResult result = new ReleaseResult();
 
         executed = true;
@@ -62,9 +60,7 @@ public class ReleasePhaseStub implements ReleasePhase, ResourceGenerator {
 
     @Override
     public ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects) {
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects) {
         ReleaseResult result = new ReleaseResult();
 
         simulated = true;
@@ -75,7 +71,7 @@ public class ReleasePhaseStub implements ReleasePhase, ResourceGenerator {
     }
 
     @Override
-    public ReleaseResult clean(List<MavenProject> reactorProjects) {
+    public ReleaseResult clean(List<Project> reactorProjects) {
         ReleaseResult result = new ReleaseResult();
 
         cleaned = true;

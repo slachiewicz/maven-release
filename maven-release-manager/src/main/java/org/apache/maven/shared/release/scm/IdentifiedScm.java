@@ -18,18 +18,31 @@
  */
 package org.apache.maven.shared.release.scm;
 
-import org.apache.maven.model.Scm;
+import org.apache.maven.api.model.Scm;
 
 /**
  * Unlike repositories the scm of the Project Model doesn't have an id.
  * This makes it quite hard to bind it to the credentials of a server as specified in the settings.xml.
+ * <p>
+ * The Maven 4 {@link Scm} is immutable, so the id is fixed at construction time and there is no setter.
  *
  * @author Robert Scholte
  * @since 2.3
  */
 public class IdentifiedScm extends Scm {
 
-    private String id;
+    private final String id;
+
+    /**
+     * Creates an identified copy of the given values.
+     *
+     * @param scm the SCM values to copy
+     * @param id the id of the server that holds the credentials, may be {@code null}
+     */
+    public IdentifiedScm(Scm scm, String id) {
+        super(scm.with());
+        this.id = id;
+    }
 
     /**
      * <p>Getter for the field <code>id</code>.</p>
@@ -38,14 +51,5 @@ public class IdentifiedScm extends Scm {
      */
     public String getId() {
         return id;
-    }
-
-    /**
-     * <p>Setter for the field <code>id</code>.</p>
-     *
-     * @param id the id to set
-     */
-    public void setId(String id) {
-        this.id = id;
     }
 }

@@ -18,19 +18,17 @@
  */
 package org.apache.maven.shared.release.exec;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
 import java.io.IOException;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.maven.settings.io.xpp3.SettingsXpp3Writer;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.apache.maven.api.services.xml.SettingsXmlFactory;
+import org.apache.maven.api.services.xml.XmlWriterException;
 import org.apache.maven.shared.invoker.DefaultInvocationRequest;
 import org.apache.maven.shared.invoker.DefaultInvoker;
 import org.apache.maven.shared.invoker.InvocationRequest;
@@ -50,8 +48,8 @@ import org.slf4j.Logger;
 @Named("invoker")
 public class InvokerMavenExecutor extends AbstractMavenExecutor {
     @Inject
-    public InvokerMavenExecutor(MavenCrypto mavenCrypto) {
-        super(mavenCrypto);
+    public InvokerMavenExecutor(MavenCrypto mavenCrypto, SettingsXmlFactory settingsXmlFactory) {
+        super(mavenCrypto, settingsXmlFactory);
     }
 
     @Override
@@ -95,13 +93,9 @@ public class InvokerMavenExecutor extends AbstractMavenExecutor {
             // Have to serialize to a file as if Maven is embedded, there may not actually be a settings.xml on disk
             try {
                 settingsFile = Files.createTempFile("release-settings", ".xml").toFile();
-                SettingsXpp3Writer writer = getSettingsWriter();
-
-                try (Writer fileWriter = Files.newBufferedWriter(settingsFile.toPath(), StandardCharsets.UTF_8)) {
-                    writer.write(fileWriter, encryptSettings(releaseEnvironment.getSettings()));
-                }
+                getSettingsXmlFactory().write(encryptSettings(releaseEnvironment.getSettings()), settingsFile.toPath());
                 req.setUserSettingsFile(settingsFile);
-            } catch (IOException e) {
+            } catch (IOException | XmlWriterException e) {
                 throw new MavenExecutorException("Could not create temporary file for release settings.xml", e);
             }
         }

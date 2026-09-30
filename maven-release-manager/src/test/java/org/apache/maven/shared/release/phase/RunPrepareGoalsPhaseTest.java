@@ -18,13 +18,12 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.io.File;
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
@@ -33,12 +32,12 @@ import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.env.ReleaseEnvironment;
 import org.apache.maven.shared.release.exec.MavenExecutor;
 import org.apache.maven.shared.release.exec.MavenExecutorException;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
 import org.apache.maven.shared.release.stubs.MavenExecutorWrapper;
-import org.codehaus.plexus.testing.PlexusTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,8 +53,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
-class RunPrepareGoalsPhaseTest {
+class RunPrepareGoalsPhaseTest extends AbstractInjectedTestCase {
     @Inject
     @Named("run-preparation-goals")
     private RunPrepareGoalsPhase phase;
@@ -69,7 +67,7 @@ class RunPrepareGoalsPhaseTest {
     @BeforeEach
     void setUp() throws Exception {
 
-        releaseEnvironment = new DefaultReleaseEnvironment();
+        releaseEnvironment = newReleaseEnvironment();
         releaseEnvironment.setMavenExecutorId("wrapper");
     }
 
@@ -87,7 +85,7 @@ class RunPrepareGoalsPhaseTest {
         mavenExecutorWrapper.setMavenExecutor(mock);
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), releaseEnvironment, (List<MavenProject>) null);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), releaseEnvironment, (List<Project>) null);
 
         // verify
         verify(mock)
@@ -156,7 +154,7 @@ class RunPrepareGoalsPhaseTest {
 
         // execute
         try {
-            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), releaseEnvironment, (List<MavenProject>) null);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), releaseEnvironment, (List<Project>) null);
 
             fail("Should have thrown an exception");
         } catch (ReleaseExecutionException e) {
@@ -235,7 +233,7 @@ class RunPrepareGoalsPhaseTest {
         mavenExecutorWrapper.setMavenExecutor(mock);
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), releaseEnvironment, (List<MavenProject>) null);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), releaseEnvironment, (List<Project>) null);
 
         // verify
         // no invocations of mock

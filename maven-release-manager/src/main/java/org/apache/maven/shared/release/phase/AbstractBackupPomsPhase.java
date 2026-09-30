@@ -20,7 +20,7 @@ package org.apache.maven.shared.release.phase;
 
 import java.io.File;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.shared.release.util.ReleaseUtil;
 
 /**
@@ -34,10 +34,10 @@ public abstract class AbstractBackupPomsPhase extends AbstractReleasePhase {
     /**
      * <p>getPomBackup.</p>
      *
-     * @param project a {@link org.apache.maven.project.MavenProject} object
+     * @param project a {@link org.apache.maven.api.Project} object
      * @return a {@link java.io.File} object
      */
-    protected File getPomBackup(MavenProject project) {
+    protected File getPomBackup(Project project) {
         File pomFile = ReleaseUtil.getStandardPom(project);
 
         if (pomFile != null) {
@@ -50,9 +50,9 @@ public abstract class AbstractBackupPomsPhase extends AbstractReleasePhase {
     /**
      * <p>deletePomBackup.</p>
      *
-     * @param project a {@link org.apache.maven.project.MavenProject} object
+     * @param project a {@link org.apache.maven.api.Project} object
      */
-    protected void deletePomBackup(MavenProject project) {
+    protected void deletePomBackup(Project project) {
         File pomBackup = getPomBackup(project);
 
         if (pomBackup != null && pomBackup.exists()) {

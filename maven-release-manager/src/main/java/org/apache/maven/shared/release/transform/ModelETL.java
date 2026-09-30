@@ -20,7 +20,6 @@ package org.apache.maven.shared.release.transform;
 
 import java.io.File;
 
-import org.apache.maven.model.Model;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 
 /**
@@ -52,7 +51,7 @@ public interface ModelETL {
     void load(File pomFile) throws ReleaseExecutionException;
 
     /**
-     * Returns the intermediate {@link Model} representation.
+     * Returns the intermediate {@link PomModel} representation.
      *
      * @deprecated This method is a temporary accessor that exists only for
      *             legacy workflow support. It will be removed once the
@@ -64,5 +63,5 @@ public interface ModelETL {
      *             processing pipeline instead of accessing the model explicitly.
      */
     @Deprecated
-    Model getModel();
+    PomModel getModel();
 }

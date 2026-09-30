@@ -18,10 +18,6 @@
  */
 package org.apache.maven.shared.release.config;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -32,7 +28,10 @@ import java.io.OutputStream;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.maven.model.Scm;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.apache.maven.api.model.Scm;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder.BuilderReleaseDescriptor;
 import org.apache.maven.shared.release.scm.IdentifiedScm;
 import org.apache.maven.shared.release.util.MavenCrypto;

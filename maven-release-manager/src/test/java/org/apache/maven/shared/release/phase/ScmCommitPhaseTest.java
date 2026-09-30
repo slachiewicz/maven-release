@@ -21,10 +21,10 @@ package org.apache.maven.shared.release.phase;
 import java.io.File;
 import java.util.List;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
+import org.apache.maven.shared.release.stubs.TestProject;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -75,13 +75,13 @@ class ScmCommitPhaseTest {
         assertTrue(files.contains(new File("pom.xml")));
     }
 
-    private static MavenProject createProject(String artifactId, String version, File file) {
-        Model model = new Model();
-        model.setGroupId("groupId");
-        model.setArtifactId(artifactId);
-        model.setVersion(version);
-        MavenProject project = new MavenProject(model);
-        project.setFile(file);
-        return project;
+    private static Project createProject(String artifactId, String version, File file) {
+        return TestProject.of(
+                org.apache.maven.api.model.Model.newBuilder()
+                        .groupId("groupId")
+                        .artifactId(artifactId)
+                        .version(version)
+                        .build(),
+                file.toPath());
     }
 }

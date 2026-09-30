@@ -18,11 +18,10 @@
  */
 package org.apache.maven.shared.release.stubs;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
 
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.env.ReleaseEnvironment;
 import org.apache.maven.shared.release.exec.MavenExecutor;

@@ -18,9 +18,6 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.StringReader;
@@ -29,7 +26,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
 import org.apache.maven.scm.ScmFile;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmFileStatus;
@@ -39,12 +38,10 @@ import org.apache.maven.scm.repository.ScmRepository;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.util.ReleaseUtil;
-import org.codehaus.plexus.testing.PlexusTest;
 import org.junit.jupiter.api.Test;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -59,7 +56,6 @@ import static org.mockito.Mockito.when;
  *
  * @author <a href="mailto:markhobson@gmail.com">Mark Hobson</a>
  */
-@PlexusTest
 class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
 
     @Inject
@@ -70,9 +66,9 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
     void testExecuteBasicPom() throws Exception {
         // prepare
         File workingDirectory = getTestFile("target/test/checkout");
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom");
+        List<Project> reactorProjects = createReactorProjects("basic-pom");
         ReleaseDescriptorBuilder builder = createReleaseDescriptorBuilder(workingDirectory);
-        MavenProject project = ReleaseUtil.getRootProject(reactorProjects);
+        Project project = ReleaseUtil.getRootProject(reactorProjects);
 
         File releasePom = ReleaseUtil.getReleasePom(project);
         ScmFileSet fileSet = new ScmFileSet(workingDirectory, releasePom);
@@ -86,7 +82,7 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
         scmManager.setScmProvider(scmProviderMock);
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         verify(scmProviderMock)
@@ -98,12 +94,12 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
     void testExecutePomWithModules() throws Exception {
         // prepare
         File workingDirectory = getTestFile("target/test/checkout");
-        List<MavenProject> reactorProjects = createReactorProjects("pom-with-modules");
+        List<Project> reactorProjects = createReactorProjects("pom-with-modules");
         ReleaseDescriptorBuilder builder = createReleaseDescriptorBuilder();
 
         List<File> releasePoms = new ArrayList<>();
-        for (Iterator<MavenProject> iterator = reactorProjects.iterator(); iterator.hasNext(); ) {
-            MavenProject project = iterator.next();
+        for (Iterator<Project> iterator = reactorProjects.iterator(); iterator.hasNext(); ) {
+            Project project = iterator.next();
             File releasePom = ReleaseUtil.getReleasePom(project);
             releasePoms.add(releasePom);
         }
@@ -119,7 +115,7 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
         scmManager.setScmProvider(scmProviderMock);
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         verify(scmProviderMock)
@@ -130,7 +126,7 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
     @Test
     void testSimulateBasicPom() throws Exception {
         // prepare
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom");
+        List<Project> reactorProjects = createReactorProjects("basic-pom");
         ReleaseDescriptorBuilder builder = createReleaseDescriptorBuilder();
 
         ScmProvider scmProviderMock = mock(ScmProvider.class);
@@ -138,7 +134,7 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
         scmManager.setScmProvider(scmProviderMock);
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // never invoke scmProviderMock
         verifyNoMoreInteractions(scmProviderMock);
@@ -147,7 +143,7 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
     @Test
     void testExecuteWithSuppressCommitBeforeTag() throws Exception {
         // prepare
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom");
+        List<Project> reactorProjects = createReactorProjects("basic-pom");
         ReleaseDescriptorBuilder builder = createReleaseDescriptorBuilder();
         builder.setSuppressCommitBeforeTagOrBranch(true);
         builder.setGenerateReleasePoms(true);
@@ -157,8 +153,8 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
         scmManager.setScmProvider(scmProviderMock);
 
         // execute
-        ReleaseResult result = phase.execute(
-                ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        ReleaseResult result =
+                phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         try (BufferedReader reader = new BufferedReader(new StringReader(result.getOutput()))) {
             assertEquals("[INFO] Removing release POM for 'artifactId'...", reader.readLine());
@@ -172,7 +168,7 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
     @Test
     void testSimulateWithSuppressCommitBeforeTag() throws Exception {
         // prepare
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom");
+        List<Project> reactorProjects = createReactorProjects("basic-pom");
         ReleaseDescriptorBuilder builder = createReleaseDescriptorBuilder();
         builder.setSuppressCommitBeforeTagOrBranch(true);
         builder.setGenerateReleasePoms(true);
@@ -182,14 +178,15 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
         scmManager.setScmProvider(scmProviderMock);
 
         // execute
-        ReleaseResult result = phase.simulate(
-                ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        ReleaseResult result =
+                phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         try (BufferedReader reader = new BufferedReader(new StringReader(result.getOutput()))) {
             assertEquals("[INFO] Removing release POM for 'artifactId'...", reader.readLine());
             assertEquals(
                     "[INFO] Full run would be removing ["
-                            + reactorProjects.get(0).getFile().getParent() + File.separator + "release-pom.xml]",
+                            + ReleaseUtil.getPomFile(reactorProjects.get(0)).getParent() + File.separator
+                            + "release-pom.xml]",
                     reader.readLine());
             assertNull(reader.readLine(), "Expected EOF");
         }
@@ -198,7 +195,7 @@ class RemoveReleasePomsPhaseTest extends AbstractReleaseTestCase {
         verifyNoMoreInteractions(scmProviderMock);
     }
 
-    protected List<MavenProject> createReactorProjects(String path) throws Exception {
+    protected List<Project> createReactorProjects(String path) throws Exception {
         String dir = "remove-release-poms/" + path;
         return createReactorProjects(dir, dir, null);
     }

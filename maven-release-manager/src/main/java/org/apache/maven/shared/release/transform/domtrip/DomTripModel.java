@@ -26,15 +26,11 @@ import java.util.stream.Collectors;
 import eu.maveniverse.domtrip.Document;
 import eu.maveniverse.domtrip.Editor;
 import eu.maveniverse.domtrip.Element;
-import org.apache.maven.model.Build;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.DependencyManagement;
-import org.apache.maven.model.Model;
-import org.apache.maven.model.Parent;
-import org.apache.maven.model.Profile;
-import org.apache.maven.model.Reporting;
-import org.apache.maven.model.Scm;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
+import org.apache.maven.shared.release.transform.MavenCoordinate;
+import org.apache.maven.shared.release.transform.PomModel;
+import org.apache.maven.shared.release.transform.PomProfile;
+import org.apache.maven.shared.release.transform.PomScm;
 import org.apache.maven.shared.release.util.CiFriendlyVersion;
 
 /**
@@ -42,10 +38,9 @@ import org.apache.maven.shared.release.util.CiFriendlyVersion;
  *
  * @since 3.4
  */
-public class DomTripModel extends Model {
+public class DomTripModel extends DomTripModelBase implements PomModel {
     private final Element project;
     private final Editor editor;
-    private final DomTripModelBase modelBase;
     private final ReleaseDescriptor releaseDescriptor;
 
     public DomTripModel(Document document, Editor editor, ReleaseDescriptor releaseDescriptor) {
@@ -53,40 +48,25 @@ public class DomTripModel extends Model {
     }
 
     public DomTripModel(Element project, Editor editor, ReleaseDescriptor releaseDescriptor) {
+        super(project, editor);
         this.project = project;
         this.editor = editor;
         this.releaseDescriptor = releaseDescriptor;
-        this.modelBase = new DomTripModelBase(project, editor);
     }
 
     @Override
-    public Build getBuild() {
-        return modelBase.getBuild();
-    }
-
-    @Override
-    public List<Dependency> getDependencies() {
-        return modelBase.getDependencies();
-    }
-
-    @Override
-    public DependencyManagement getDependencyManagement() {
-        return modelBase.getDependencyManagement();
-    }
-
-    @Override
-    public Parent getParent() {
+    public MavenCoordinate getParent() {
         return project.childElement("parent")
-                .map(elm -> (Parent) new DomTripParent(elm, editor))
+                .map(elm -> (MavenCoordinate) new DomTripMavenCoordinate(elm, editor))
                 .orElse(null);
     }
 
     @Override
-    public List<Profile> getProfiles() {
+    public List<PomProfile> getProfiles() {
         return project.childElement("profiles")
                 .map(profilesElm -> profilesElm
                         .childElements("profile")
-                        .map(profileElm -> (Profile) new DomTripProfile(profileElm, editor))
+                        .map(profileElm -> (PomProfile) new DomTripProfile(profileElm, editor))
                         .collect(Collectors.toList()))
                 .orElse(Collections.emptyList());
     }
@@ -99,21 +79,14 @@ public class DomTripModel extends Model {
     }
 
     @Override
-    public Reporting getReporting() {
-        return project.childElement("reporting")
-                .map(elm -> (Reporting) new DomTripReporting(elm, editor))
-                .orElse(null);
-    }
-
-    @Override
-    public void setScm(Scm scm) {
+    public void setScm(PomScm scm) {
         if (scm == null) {
             project.childElement("scm").ifPresent(editor::removeElement);
         } else {
             Element scmRoot = editor.addElement(project, "scm");
 
             // Write current values to DomTrip tree
-            Scm domTripScm = new DomTripScm(scmRoot, editor);
+            PomScm domTripScm = new DomTripScm(scmRoot, editor);
             domTripScm.setConnection(scm.getConnection());
             domTripScm.setDeveloperConnection(scm.getDeveloperConnection());
             domTripScm.setTag(scm.getTag());
@@ -122,9 +95,9 @@ public class DomTripModel extends Model {
     }
 
     @Override
-    public Scm getScm() {
+    public PomScm getScm() {
         return project.childElement("scm")
-                .map(elm -> (Scm) new DomTripScm(elm, editor))
+                .map(elm -> (PomScm) new DomTripScm(elm, editor))
                 .orElse(null);
     }
 

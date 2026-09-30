@@ -18,9 +18,8 @@
  */
 package org.apache.maven.shared.release.scm;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.scm.ScmBranch;
 import org.apache.maven.scm.ScmTag;
 import org.apache.maven.scm.provider.svn.SvnTagBranchUtils;

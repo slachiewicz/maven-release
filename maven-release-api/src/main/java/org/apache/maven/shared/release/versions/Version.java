@@ -24,7 +24,6 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.maven.artifact.ArtifactUtils;
 import org.codehaus.plexus.util.StringUtils;
 
 /**
@@ -32,8 +31,6 @@ import org.codehaus.plexus.util.StringUtils;
  */
 public class Version implements Comparable<Version>, Cloneable {
     private final AetherVersion aetherVersion;
-
-    private final MavenArtifactVersion mavenArtifactVersion;
 
     private final String strVersion;
 
@@ -111,7 +108,6 @@ public class Version implements Comparable<Version>, Cloneable {
 
         // for now no need to reparse, original version was valid
         this.aetherVersion = null;
-        this.mavenArtifactVersion = null;
     }
 
     /**
@@ -123,7 +119,6 @@ public class Version implements Comparable<Version>, Cloneable {
     public Version(String version) throws VersionParseException {
         this.strVersion = version;
         this.aetherVersion = new AetherVersion(version);
-        this.mavenArtifactVersion = new MavenArtifactVersion(version);
 
         // FIX for non-digit release numbers, e.g. trunk-SNAPSHOT or just SNAPSHOT
         Matcher matcher = ALTERNATE_PATTERN.matcher(strVersion);
@@ -171,7 +166,7 @@ public class Version implements Comparable<Version>, Cloneable {
      * @return a boolean
      */
     public boolean isSnapshot() {
-        return ArtifactUtils.isSnapshot(strVersion);
+        return ArtifactKeys.isSnapshot(strVersion);
     }
 
     /**
@@ -351,25 +346,13 @@ public class Version implements Comparable<Version>, Cloneable {
     /**
      * <p>compareTo.</p>
      *
+     * <p>Maven 4 orders versions with a single scheme, so unlike the Maven 3 based implementation there is no
+     * second comparison to disagree with.</p>
+     *
      * @param other a {@link org.apache.maven.shared.release.versions.Version} object
      * @return a int
-     * @throws org.apache.maven.shared.release.versions.VersionComparisonConflictException
-     *              if {@link org.eclipse.aether.version.Version} and
-     *             {@link org.apache.maven.artifact.versioning.ArtifactVersion ArtifactVersion} give different results
      */
-    public int compareTo(Version other) throws VersionComparisonConflictException {
-        int aetherComparisonResult = this.aetherVersion.compareTo(other.aetherVersion);
-        int mavenComparisonResult = this.mavenArtifactVersion.compareTo(other.mavenArtifactVersion);
-
-        if (aetherComparisonResult < 0 && mavenComparisonResult < 0) {
-            return -1;
-        } else if (aetherComparisonResult == 0 && mavenComparisonResult == 0) {
-            return 0;
-        } else if (aetherComparisonResult > 0 && mavenComparisonResult > 0) {
-            return 1;
-        } else {
-            throw new VersionComparisonConflictException(
-                    this.strVersion, other.strVersion, aetherComparisonResult, mavenComparisonResult);
-        }
+    public int compareTo(Version other) {
+        return Integer.signum(this.aetherVersion.compareTo(other.aetherVersion));
     }
 }

@@ -18,9 +18,8 @@
  */
 package org.apache.maven.shared.release.exec;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.codehaus.plexus.util.cli.Commandline;
 
 /**

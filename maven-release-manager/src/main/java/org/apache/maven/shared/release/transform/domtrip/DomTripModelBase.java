@@ -24,16 +24,16 @@ import java.util.stream.Collectors;
 
 import eu.maveniverse.domtrip.Editor;
 import eu.maveniverse.domtrip.Element;
-import org.apache.maven.model.Build;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.DependencyManagement;
+import org.apache.maven.shared.release.transform.MavenCoordinate;
+import org.apache.maven.shared.release.transform.PomBuild;
+import org.apache.maven.shared.release.transform.PomModelBase;
 
 /**
- * DomTrip shared model base logic.
+ * DomTrip shared model base logic, common to the {@code project} and the {@code profile} element.
  *
  * @since 3.4
  */
-public class DomTripModelBase {
+public class DomTripModelBase implements PomModelBase {
     private final Element modelBase;
     private final Editor editor;
 
@@ -42,26 +42,53 @@ public class DomTripModelBase {
         this.editor = editor;
     }
 
-    public Build getBuild() {
+    @Override
+    public PomBuild getBuild() {
         return modelBase
                 .childElement("build")
-                .map(elm -> (Build) new DomTripBuild(elm, editor))
+                .map(elm -> (PomBuild) new DomTripBuild(elm, editor))
                 .orElse(null);
     }
 
-    public List<Dependency> getDependencies() {
+    @Override
+    public List<MavenCoordinate> getDependencies() {
+        return dependencies(modelBase);
+    }
+
+    @Override
+    public List<MavenCoordinate> getManagedDependencies() {
         return modelBase
-                .childElement("dependencies")
-                .map(deps -> deps.childElements("dependency")
-                        .map(dep -> (Dependency) new DomTripDependency(dep, editor))
+                .childElement("dependencyManagement")
+                .map(this::dependencies)
+                .orElse(Collections.emptyList());
+    }
+
+    @Override
+    public boolean hasDependencyManagement() {
+        return modelBase.childElement("dependencyManagement").isPresent();
+    }
+
+    @Override
+    public List<MavenCoordinate> getReportPlugins() {
+        return modelBase
+                .childElement("reporting")
+                .flatMap(reporting -> reporting.childElement("plugins"))
+                .map(plugins -> plugins.childElements("plugin")
+                        .map(plugin -> (MavenCoordinate) new DomTripMavenCoordinate(plugin, editor))
                         .collect(Collectors.toList()))
                 .orElse(Collections.emptyList());
     }
 
-    public DependencyManagement getDependencyManagement() {
-        return modelBase
-                .childElement("dependencyManagement")
-                .map(elm -> (DependencyManagement) new DomTripDependencyManagement(elm, editor))
-                .orElse(null);
+    @Override
+    public boolean hasReporting() {
+        return modelBase.childElement("reporting").isPresent();
+    }
+
+    private List<MavenCoordinate> dependencies(Element parent) {
+        return parent.childElement("dependencies")
+                .map(deps -> deps.childElements("dependency")
+                        .map(dep -> (MavenCoordinate) new DomTripMavenCoordinate(dep, editor))
+                        .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
     }
 }

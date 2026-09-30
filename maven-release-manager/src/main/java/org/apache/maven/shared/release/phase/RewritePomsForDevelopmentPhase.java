@@ -18,21 +18,22 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.util.Map;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.model.Scm;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.apache.maven.api.model.Model;
+import org.apache.maven.api.model.Scm;
 import org.apache.maven.scm.repository.ScmRepository;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
 import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
 import org.apache.maven.shared.release.scm.ScmTranslator;
 import org.apache.maven.shared.release.transform.ModelETLFactory;
+import org.apache.maven.shared.release.transform.PomModel;
+import org.apache.maven.shared.release.transform.PomScm;
 
 /**
  * Rewrite POMs for future development.
@@ -57,15 +58,16 @@ public class RewritePomsForDevelopmentPhase extends AbstractRewritePomsPhase {
 
     @Override
     protected void transformScm(
-            MavenProject project,
-            Model modelTarget,
+            Project project,
+            PomModel modelTarget,
+            Model originalModel,
             ReleaseDescriptor releaseDescriptor,
             String projectId,
             ScmRepository scmRepository,
             ReleaseResult result) {
         // If SCM is null in original model, it is inherited, no mods needed
-        if (project.getScm() != null) {
-            Scm scmRoot = modelTarget.getScm();
+        if (project.getModel().getScm() != null) {
+            PomScm scmRoot = modelTarget.getScm();
             if (scmRoot != null) {
                 ScmTranslator translator = getScmTranslators().get(scmRepository.getProvider());
                 if (translator != null) {

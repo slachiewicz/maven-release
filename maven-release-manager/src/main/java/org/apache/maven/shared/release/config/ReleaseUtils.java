@@ -24,6 +24,7 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.maven.api.model.Scm;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder.BuilderReleaseDescriptor;
 import org.apache.maven.shared.release.scm.IdentifiedScm;
 
@@ -188,13 +189,15 @@ public class ReleaseUtils {
                         if (properties.getProperty("project.scm." + key + ".empty") != null) {
                             builder.addOriginalScmInfo(key, null);
                         } else {
-                            IdentifiedScm scm = new IdentifiedScm();
-                            scm.setConnection(properties.getProperty("project.scm." + key + ".connection"));
-                            scm.setDeveloperConnection(
-                                    properties.getProperty("project.scm." + key + ".developerConnection"));
-                            scm.setUrl(properties.getProperty("project.scm." + key + ".url"));
-                            scm.setTag(properties.getProperty("project.scm." + key + ".tag"));
-                            scm.setId(properties.getProperty("project.scm." + key + ".id"));
+                            Scm base = Scm.newBuilder()
+                                    .connection(properties.getProperty("project.scm." + key + ".connection"))
+                                    .developerConnection(
+                                            properties.getProperty("project.scm." + key + ".developerConnection"))
+                                    .url(properties.getProperty("project.scm." + key + ".url"))
+                                    .tag(properties.getProperty("project.scm." + key + ".tag"))
+                                    .build();
+                            IdentifiedScm scm =
+                                    new IdentifiedScm(base, properties.getProperty("project.scm." + key + ".id"));
 
                             builder.addOriginalScmInfo(key, scm);
                         }

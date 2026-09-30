@@ -25,11 +25,11 @@ import java.io.Writer;
 import eu.maveniverse.domtrip.Document;
 import eu.maveniverse.domtrip.Editor;
 import eu.maveniverse.domtrip.Element;
-import org.apache.maven.model.Model;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
 import org.apache.maven.shared.release.transform.ModelETL;
+import org.apache.maven.shared.release.transform.PomModel;
 import org.codehaus.plexus.util.xml.XmlStreamWriter;
 
 /**
@@ -44,7 +44,7 @@ import org.codehaus.plexus.util.xml.XmlStreamWriter;
 public class DomTripModelETL implements ModelETL {
     private ReleaseDescriptor releaseDescriptor;
 
-    private MavenProject project;
+    private Project project;
 
     private Document document;
 
@@ -54,7 +54,7 @@ public class DomTripModelETL implements ModelETL {
         this.releaseDescriptor = releaseDescriptor;
     }
 
-    public void setProject(MavenProject project) {
+    public void setProject(Project project) {
         this.project = project;
     }
 
@@ -77,7 +77,7 @@ public class DomTripModelETL implements ModelETL {
     }
 
     @Override
-    public Model getModel() {
+    public PomModel getModel() {
         return new DomTripModel(document, editor, releaseDescriptor);
     }
 
@@ -85,7 +85,7 @@ public class DomTripModelETL implements ModelETL {
         if (releaseDescriptor.isAddSchema()) {
             Element rootElement = document.root();
 
-            String modelVersion = project.getModelVersion();
+            String modelVersion = project.getModel().getModelVersion();
             String pomNamespaceUri = "http://maven.apache.org/POM/" + modelVersion;
             String xsiNamespaceUri = "http://www.w3.org/2001/XMLSchema-instance";
 
