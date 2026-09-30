@@ -24,8 +24,8 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
+import org.apache.maven.shared.release.versions.ArtifactKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +73,7 @@ public class CiFriendlyVersion {
             String sha1 = resolveSha1Property(properties, releaseDescriptor);
             // assume that everybody follows the example and properties are simply chained
             //  and the changelist can only be '-SNAPSHOT'
-            if (ArtifactUtils.isSnapshot(version)) {
+            if (ArtifactKeys.isSnapshot(version)) {
                 if (properties.containsKey(CHANGELIST)) {
                     String revision = version.replace(sha1, "").replace(SNAPSHOT, "");
                     setAndLogPropertyChange(properties, REVISION, revision);

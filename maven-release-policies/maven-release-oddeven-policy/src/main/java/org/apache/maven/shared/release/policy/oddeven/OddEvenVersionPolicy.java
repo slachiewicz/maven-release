@@ -18,20 +18,18 @@
  */
 package org.apache.maven.shared.release.policy.oddeven;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.util.List;
 
-import org.apache.maven.artifact.Artifact;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.shared.release.policy.PolicyException;
 import org.apache.maven.shared.release.policy.version.VersionPolicy;
 import org.apache.maven.shared.release.policy.version.VersionPolicyRequest;
 import org.apache.maven.shared.release.policy.version.VersionPolicyResult;
+import org.apache.maven.shared.release.versions.ArtifactKeys;
 import org.apache.maven.shared.release.versions.Version;
 import org.apache.maven.shared.release.versions.VersionParseException;
 import org.codehaus.plexus.util.StringUtils;
-import org.eclipse.sisu.Description;
 
 /**
  * A {@link org.apache.maven.shared.release.policy.version.VersionPolicy} implementation that propose even version numbers only for releases and odd
@@ -43,7 +41,6 @@ import org.eclipse.sisu.Description;
  */
 @Singleton
 @Named("OddEvenVersionPolicy")
-@Description("A VersionPolicy implementation that selects even version numbers only for releases")
 public final class OddEvenVersionPolicy implements VersionPolicy {
 
     @Override
@@ -97,7 +94,7 @@ public final class OddEvenVersionPolicy implements VersionPolicy {
         }
 
         if (development) {
-            return newVersion.setBuildSpecifier(Artifact.SNAPSHOT_VERSION);
+            return newVersion.setBuildSpecifier(ArtifactKeys.SNAPSHOT_VERSION);
         } else {
             return newVersion.setBuildSpecifier(null);
         }

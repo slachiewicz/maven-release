@@ -18,34 +18,27 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
-import org.codehaus.plexus.testing.PlexusTest;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
+import org.apache.maven.shared.release.stubs.TestProject;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@PlexusTest
-class MapDevelopmentVersionPhaseTest {
+class MapDevelopmentVersionPhaseTest extends AbstractInjectedTestCase {
     @Inject
     @Named("map-development-versions")
     private MapDevelopmentVersionsPhase mapDevelopmentVersionsPhase;
 
-    private static MavenProject createProject(String artifactId, String version) {
-        Model model = new Model();
-        model.setGroupId("groupId");
-        model.setArtifactId(artifactId);
-        model.setVersion(version);
-        return new MavenProject(model);
+    private static Project createProject(String artifactId, String version) {
+        return TestProject.of("groupId", artifactId, version);
     }
 
     @Test
@@ -54,9 +47,9 @@ class MapDevelopmentVersionPhaseTest {
         builder.setInteractive(false);
         builder.setUpdateWorkingCopyVersions(false);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
         mapDevelopmentVersionsPhase.execute(
-                ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+                ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         assertEquals(
                 "1.0", ReleaseUtils.buildReleaseDescriptor(builder).getProjectDevelopmentVersion("groupId:artifactId"));

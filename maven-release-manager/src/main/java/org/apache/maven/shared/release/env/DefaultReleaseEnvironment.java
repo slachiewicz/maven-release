@@ -20,7 +20,8 @@ package org.apache.maven.shared.release.env;
 
 import java.io.File;
 
-import org.apache.maven.settings.Settings;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.settings.Settings;
 
 /**
  * <p>DefaultReleaseEnvironment class.</p>
@@ -34,6 +35,8 @@ public class DefaultReleaseEnvironment implements ReleaseEnvironment {
 
     private Settings settings;
 
+    private Session session;
+
     private String mavenExecutorId = DEFAULT_MAVEN_EXECUTOR_ID;
 
     @Override
@@ -44,6 +47,22 @@ public class DefaultReleaseEnvironment implements ReleaseEnvironment {
     @Override
     public Settings getSettings() {
         return settings;
+    }
+
+    @Override
+    public Session getSession() {
+        return session;
+    }
+
+    /**
+     * <p>Setter for the field <code>session</code>.</p>
+     *
+     * @param session the Maven 4 API session of the running build
+     * @return a {@link org.apache.maven.shared.release.env.DefaultReleaseEnvironment} object
+     */
+    public DefaultReleaseEnvironment setSession(Session session) {
+        this.session = session;
+        return this;
     }
 
     /**
@@ -60,7 +79,7 @@ public class DefaultReleaseEnvironment implements ReleaseEnvironment {
     /**
      * <p>Setter for the field <code>settings</code>.</p>
      *
-     * @param settings a {@link org.apache.maven.settings.Settings} object
+     * @param settings a {@link org.apache.maven.api.settings.Settings} object
      * @return a {@link org.apache.maven.shared.release.env.DefaultReleaseEnvironment} object
      */
     public DefaultReleaseEnvironment setSettings(Settings settings) {

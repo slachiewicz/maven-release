@@ -18,26 +18,23 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
 import org.apache.maven.scm.provider.svn.repository.SvnScmProviderRepository;
 import org.apache.maven.scm.repository.ScmRepository;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.util.ReleaseUtil;
-import org.codehaus.plexus.testing.PlexusTest;
 import org.junit.jupiter.api.Test;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -47,7 +44,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
 class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhaseTestCase {
     private static final String NEXT_VERSION = "1.0-SNAPSHOT";
 
@@ -68,7 +64,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
     }
 
     @Override
-    protected List<MavenProject> prepareReactorProjects(String path) throws Exception {
+    protected List<Project> prepareReactorProjects(String path) throws Exception {
         String dir = "rewrite-for-branch/" + Objects.toString(path, "");
         return createReactorProjects(dir, path, null);
     }
@@ -80,13 +76,13 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
 
     @Test
     void testSimulateRewrite() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom");
+        List<Project> reactorProjects = createReactorProjects("basic-pom");
         ReleaseDescriptorBuilder builder = createDescriptorFromBasicPom(reactorProjects, "basic-pom");
         builder.addReleaseVersion("groupId:artifactId", NEXT_VERSION);
 
         String expected = readTestProjectFile("basic-pom/pom.xml");
 
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         String actual = readTestProjectFile("basic-pom/pom.xml");
         assertEquals(expected, actual, "Check the original POM untouched");
@@ -98,14 +94,14 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
 
     @Test
     void testRewriteWithDashedComments() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom-with-dashes-in-comment");
+        List<Project> reactorProjects = createReactorProjects("basic-pom-with-dashes-in-comment");
         ReleaseDescriptorBuilder builder =
                 createDescriptorFromBasicPom(reactorProjects, "basic-pom-with-dashes-in-comment");
         builder.addReleaseVersion("groupId:artifactId", NEXT_VERSION);
 
         String expected = readTestProjectFile("basic-pom-with-dashes-in-comment/pom.xml");
 
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         String actual = readTestProjectFile("basic-pom-with-dashes-in-comment/pom.xml");
         assertEquals(expected, actual, "Check the original POM is untouched");
@@ -117,7 +113,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
 
     @Test
     void testClean() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom");
+        List<Project> reactorProjects = createReactorProjects("basic-pom");
         ReleaseDescriptorBuilder builder = createDescriptorFromProjects(reactorProjects, "basic-pom");
         builder.addReleaseVersion("groupId:artifactId", NEXT_VERSION);
 
@@ -125,7 +121,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
         testFile.delete();
         assertFalse(testFile.exists());
 
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         assertTrue(testFile.exists());
 
@@ -136,7 +132,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
 
     @Test
     void testCleanNotExists() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom");
+        List<Project> reactorProjects = createReactorProjects("basic-pom");
         ReleaseDescriptorBuilder builder = createDescriptorFromBasicPom(reactorProjects, "basic-pom");
         builder.addReleaseVersion("groupId:artifactId", NEXT_VERSION);
 
@@ -152,12 +148,12 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
     // MRELEASE-116
     @Test
     void testScmOverridden() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("pom-with-overridden-scm");
+        List<Project> reactorProjects = createReactorProjects("pom-with-overridden-scm");
         ReleaseDescriptorBuilder builder =
                 createConfigurationForWithParentNextVersion(reactorProjects, "pom-with-overridden-scm");
         builder.addReleaseVersion("groupId:subsubproject", NEXT_VERSION);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
@@ -174,7 +170,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
 
     @Override
     protected ReleaseDescriptorBuilder createConfigurationForPomWithParentAlternateNextVersion(
-            List<MavenProject> reactorProjects, String workingDirectory) {
+            List<Project> reactorProjects, String workingDirectory) {
         ReleaseDescriptorBuilder builder = createDescriptorFromProjects(reactorProjects, workingDirectory);
 
         builder.addReleaseVersion("groupId:artifactId", NEXT_VERSION);
@@ -184,7 +180,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
 
     @Override
     protected ReleaseDescriptorBuilder createConfigurationForWithParentNextVersion(
-            List<MavenProject> reactorProjects, String workingDirectory) {
+            List<Project> reactorProjects, String workingDirectory) {
         ReleaseDescriptorBuilder builder = createDescriptorFromProjects(reactorProjects, workingDirectory);
 
         builder.addReleaseVersion("groupId:artifactId", NEXT_VERSION);
@@ -200,7 +196,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
     @Test
     void testRewriteBasicPomWithGit() throws Exception {
 
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom-with-git");
+        List<Project> reactorProjects = createReactorProjects("basic-pom-with-git");
         ReleaseDescriptorBuilder builder = createDescriptorFromProjects(reactorProjects, "basic-pom-with-git");
         mapNextVersion(builder, "groupId:artifactId");
 
@@ -209,7 +205,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
         ScmRepository repository = new ScmRepository("git", scmProviderRepository);
         scmManager.addScmRepositoryForUrl("scm:git:git://localhost/repo", repository);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
@@ -217,12 +213,12 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
     @Test
     void testRewriteBasicPomWithScmExpression() throws Exception {
 
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom-with-scm-expression");
+        List<Project> reactorProjects = createReactorProjects("basic-pom-with-scm-expression");
         ReleaseDescriptorBuilder builder =
                 createDescriptorFromProjects(reactorProjects, "basic-pom-with-scm-expression");
         mapNextVersion(builder, "groupId:artifactId");
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
@@ -230,32 +226,32 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
     @Test
     void testRewriteBasicPomWithTagBase() throws Exception {
 
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom-with-tag-base");
+        List<Project> reactorProjects = createReactorProjects("basic-pom-with-tag-base");
         ReleaseDescriptorBuilder builder = createDescriptorFromProjects(reactorProjects, "basic-pom-with-tag-base");
         builder.setScmBranchBase("file://localhost/tmp/scm-repo/branches");
         mapNextVersion(builder, "groupId:artifactId");
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
 
     @Test
     void testRewriteBasicPomWithTagBaseAndVaryingScmUrls() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom-with-tag-base-and-varying-scm-urls");
+        List<Project> reactorProjects = createReactorProjects("basic-pom-with-tag-base-and-varying-scm-urls");
         ReleaseDescriptorBuilder builder =
                 createDescriptorFromProjects(reactorProjects, "basic-pom-with-tag-base-and-varying-scm-urls");
         builder.setScmBranchBase("file://localhost/tmp/scm-repo/allprojects/branches");
         mapNextVersion(builder, "groupId:artifactId");
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
 
     @Test
     void testRewriteBasicPomWithGitFromTag() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom-with-git-from-tag");
+        List<Project> reactorProjects = createReactorProjects("basic-pom-with-git-from-tag");
         ReleaseDescriptorBuilder builder = createDescriptorFromProjects(reactorProjects, "basic-pom-with-git-from-tag");
         mapNextVersion(builder, "groupId:artifactId");
 
@@ -264,35 +260,35 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
         ScmRepository repository = new ScmRepository("git", scmProviderRepository);
         scmManager.addScmRepositoryForUrl("scm:git:git://localhost/repo", repository);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
 
     @Test
     void testRewriteBasicPomWithEmptyScm() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom-with-empty-scm");
+        List<Project> reactorProjects = createReactorProjects("basic-pom-with-empty-scm");
         ReleaseDescriptorBuilder builder = createDescriptorFromProjects(reactorProjects, "basic-pom-with-empty-scm");
         mapNextVersion(builder, "groupId:artifactId");
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
 
     @Test
     void testRewriteInterpolatedVersions() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("interpolated-versions");
+        List<Project> reactorProjects = createReactorProjects("interpolated-versions");
         ReleaseDescriptorBuilder builder = createMappedConfiguration(reactorProjects, "interpolated-versions");
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
 
     @Test
     void testRewriteInterpolatedVersionsDifferentVersion() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("interpolated-versions");
+        List<Project> reactorProjects = createReactorProjects("interpolated-versions");
         ReleaseDescriptorBuilder builder = createDescriptorFromProjects(reactorProjects, "interpolated-versions");
 
         builder.addReleaseVersion("groupId:artifactId", NEXT_VERSION);
@@ -300,9 +296,9 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
         builder.addReleaseVersion("groupId:subproject2", NEXT_VERSION);
         builder.addReleaseVersion("groupId:subproject3", NEXT_VERSION);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
-        for (MavenProject project : reactorProjects) {
+        for (Project project : reactorProjects) {
             // skip subproject1 - we don't need to worry about its version mapping change, it has no deps of any kind
             if (!"groupId".equals(project.getGroupId()) || !"subproject1".equals(project.getArtifactId())) {
                 comparePomFiles(project, "-different-version", true);
@@ -312,19 +308,19 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
 
     @Test
     void testRewriteBasicPomWithInheritedScm() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("basic-pom-inherited-scm");
+        List<Project> reactorProjects = createReactorProjects("basic-pom-inherited-scm");
         ReleaseDescriptorBuilder builder =
                 createConfigurationForWithParentNextVersion(reactorProjects, "basic-pom-inherited-scm");
         builder.addReleaseVersion("groupId:subsubproject", NEXT_VERSION);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
 
     @Test
     void testRewritePomWithParentAndProperties() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("pom-with-parent-and-properties");
+        List<Project> reactorProjects = createReactorProjects("pom-with-parent-and-properties");
 
         ReleaseDescriptorBuilder builder =
                 createDescriptorFromProjects(reactorProjects, "pom-with-parent-and-properties");
@@ -332,7 +328,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
         builder.addReleaseVersion("groupId:subproject1", ALTERNATIVE_NEXT_VERSION);
         builder.addReleaseVersion("groupId:subproject2", ALTERNATIVE_NEXT_VERSION);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
@@ -340,7 +336,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
     // MRELEASE-311
     @Test
     void testRewritePomWithDependencyPropertyCoordinate() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("pom-with-property-dependency-coordinate");
+        List<Project> reactorProjects = createReactorProjects("pom-with-property-dependency-coordinate");
 
         ReleaseDescriptorBuilder builder =
                 createDescriptorFromProjects(reactorProjects, "pom-with-property-dependency-coordinate");
@@ -348,7 +344,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
         builder.addReleaseVersion("groupId:subproject1-3.4", ALTERNATIVE_NEXT_VERSION);
         builder.addReleaseVersion("groupId:subproject2", ALTERNATIVE_NEXT_VERSION);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
@@ -356,21 +352,21 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
     // MRELEASE-305
     @Test
     void testRewritePomWithScmOfParentEndingWithASlash() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("pom-with-scm-of-parent-ending-with-a-slash");
+        List<Project> reactorProjects = createReactorProjects("pom-with-scm-of-parent-ending-with-a-slash");
 
         ReleaseDescriptorBuilder builder =
                 createDescriptorFromProjects(reactorProjects, "pom-with-scm-of-parent-ending-with-a-slash");
         builder.addReleaseVersion("groupId:artifactId", NEXT_VERSION);
         builder.addReleaseVersion("groupId:subproject1", ALTERNATIVE_NEXT_VERSION);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
 
     @Test
     void testRewritePomWithDeepSubprojects() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("multimodule-with-deep-subprojects");
+        List<Project> reactorProjects = createReactorProjects("multimodule-with-deep-subprojects");
 
         ReleaseDescriptorBuilder builder =
                 createDescriptorFromProjects(reactorProjects, "multimodule-with-deep-subprojects");
@@ -378,19 +374,19 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
         builder.addReleaseVersion("groupId:subproject1", ALTERNATIVE_NEXT_VERSION);
         builder.addReleaseVersion("groupId:subproject2", ALTERNATIVE_NEXT_VERSION);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
 
     @Test
     void testRewritePomForFlatMultiModule() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects(
+        List<Project> reactorProjects = createReactorProjects(
                 "rewrite-for-branch/pom-with-parent-flat", "pom-with-parent-flat", "root-project");
         ReleaseDescriptorBuilder builder =
                 createConfigurationForPomWithParentAlternateNextVersion(reactorProjects, "pom-with-parent-flat");
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
@@ -398,7 +394,7 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
     // MRELEASE-383
     @Test
     void testRewritePomWithCDATASectionOnWindows() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("cdata-section");
+        List<Project> reactorProjects = createReactorProjects("cdata-section");
         ReleaseDescriptorBuilder builder = createDescriptorFromProjects(reactorProjects, "cdata-section");
         mapNextVersion(builder, "groupId:artifactId");
 
@@ -406,14 +402,14 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
         ReleaseDescriptorBuilder.BuilderReleaseDescriptor builderReleaseDescriptor =
                 ReleaseUtils.buildReleaseDescriptor(builder);
         builderReleaseDescriptor.setLineSeparator("\r\n");
-        phase.execute(builderReleaseDescriptor, new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(builderReleaseDescriptor, newReleaseEnvironment(), reactorProjects);
 
         // compare POMS without line ending normalization
         comparePomFiles(reactorProjects, false);
     }
 
     protected ReleaseDescriptorBuilder createDescriptorFromProjects(
-            List<MavenProject> reactorProjects, String workingDirectory) {
+            List<Project> reactorProjects, String workingDirectory) {
         ReleaseDescriptorBuilder builder = super.createDescriptorFromProjects(reactorProjects, workingDirectory);
         builder.setScmReleaseLabel("release-label");
         return builder;
@@ -422,23 +418,23 @@ class RewritePomsForBranchPhaseTest extends AbstractEditModeRewritingReleasePhas
     // MRELEASE-454
     @Test
     void testRewritePomWithImportedDependencyManagementInReactor() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("imported-dependency-management-in-reactor");
+        List<Project> reactorProjects = createReactorProjects("imported-dependency-management-in-reactor");
         ReleaseDescriptorBuilder builder =
                 createMappedConfiguration(reactorProjects, "imported-dependency-management-in-reactor");
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }
 
     @Test
     void testRewritePomWithDifferentVersionsAcrossModules() throws Exception {
-        List<MavenProject> reactorProjects = createReactorProjects("modules-with-different-versions");
+        List<Project> reactorProjects = createReactorProjects("modules-with-different-versions");
         ReleaseDescriptorBuilder builder =
                 createMappedConfiguration(reactorProjects, "modules-with-different-versions");
         builder.addReleaseVersion("groupId:subproject2", ALTERNATIVE_NEXT_VERSION);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         comparePomFiles(reactorProjects);
     }

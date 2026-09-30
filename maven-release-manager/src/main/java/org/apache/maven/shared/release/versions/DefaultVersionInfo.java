@@ -27,9 +27,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.eclipse.aether.util.version.GenericVersionScheme;
+import org.eclipse.aether.version.InvalidVersionSpecificationException;
 
 /**
  * This compares and increments versions for a common java versioning scheme.
@@ -190,7 +189,7 @@ public class DefaultVersionInfo implements VersionInfo {
 
     @Override
     public boolean isSnapshot() {
-        return ArtifactUtils.isSnapshot(strVersion);
+        return ArtifactKeys.isSnapshot(strVersion);
     }
 
     @Override
@@ -245,9 +244,18 @@ public class DefaultVersionInfo implements VersionInfo {
             String thisVersion = strVersion.toUpperCase(Locale.ENGLISH).toLowerCase(Locale.ENGLISH);
             String thatVersion = that.strVersion.toUpperCase(Locale.ENGLISH).toLowerCase(Locale.ENGLISH);
 
-            result = new DefaultArtifactVersion(thisVersion).compareTo(new DefaultArtifactVersion(thatVersion));
+            result = parse(thisVersion).compareTo(parse(thatVersion));
         }
         return result;
+    }
+
+    private static org.eclipse.aether.version.Version parse(String version) {
+        try {
+            return new GenericVersionScheme().parseVersion(version);
+        } catch (InvalidVersionSpecificationException e) {
+            // GenericVersionScheme accepts every string; keep the contract of the Maven 3 based comparison
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
     }
 
     @Override
@@ -284,7 +292,7 @@ public class DefaultVersionInfo implements VersionInfo {
 
     @Override
     public String getSnapshotVersionString() {
-        if (strVersion.equals(Artifact.SNAPSHOT_VERSION)) {
+        if (strVersion.equals(ArtifactKeys.SNAPSHOT_VERSION)) {
             return strVersion;
         }
 
@@ -294,21 +302,21 @@ public class DefaultVersionInfo implements VersionInfo {
             baseVersion += "-";
         }
 
-        return baseVersion + Artifact.SNAPSHOT_VERSION;
+        return baseVersion + ArtifactKeys.SNAPSHOT_VERSION;
     }
 
     @Override
     public String getReleaseVersionString() {
         String baseVersion = strVersion;
 
-        Matcher m = Artifact.VERSION_FILE_PATTERN.matcher(baseVersion);
+        Matcher m = ArtifactKeys.VERSION_FILE_PATTERN.matcher(baseVersion);
         if (m.matches()) {
             baseVersion = m.group(1);
         }
         // MRELEASE-623 SNAPSHOT is case-insensitive
-        else if (StringUtils.right(baseVersion, 9).equalsIgnoreCase("-" + Artifact.SNAPSHOT_VERSION)) {
-            baseVersion = baseVersion.substring(0, baseVersion.length() - Artifact.SNAPSHOT_VERSION.length() - 1);
-        } else if (baseVersion.equals(Artifact.SNAPSHOT_VERSION)) {
+        else if (StringUtils.right(baseVersion, 9).equalsIgnoreCase("-" + ArtifactKeys.SNAPSHOT_VERSION)) {
+            baseVersion = baseVersion.substring(0, baseVersion.length() - ArtifactKeys.SNAPSHOT_VERSION.length() - 1);
+        } else if (baseVersion.equals(ArtifactKeys.SNAPSHOT_VERSION)) {
             baseVersion = "1.0";
         }
         return baseVersion;

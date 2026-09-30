@@ -18,8 +18,6 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,19 +25,21 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.model.Model;
+import org.apache.maven.api.services.Prompter;
+import org.apache.maven.api.services.PrompterException;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.policy.PolicyException;
 import org.apache.maven.shared.release.policy.version.VersionPolicy;
 import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
+import org.apache.maven.shared.release.stubs.TestProject;
+import org.apache.maven.shared.release.util.ReleaseUtil;
 import org.apache.maven.shared.release.versions.VersionParseException;
-import org.codehaus.plexus.components.interactivity.Prompter;
-import org.codehaus.plexus.components.interactivity.PrompterException;
-import org.codehaus.plexus.testing.PlexusTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,8 +65,7 @@ import static org.mockito.Mockito.when;
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
 @ExtendWith(MockitoExtension.class)
-@PlexusTest
-class MapVersionsPhaseTest {
+class MapVersionsPhaseTest extends AbstractInjectedTestCase {
     @Mock
     private ScmRepositoryConfigurator scmRepositoryConfigurator;
 
@@ -84,19 +83,20 @@ class MapVersionsPhaseTest {
     @Test
     void testExecuteSnapshotMapRelease() throws Exception {
         // prepare
-        MavenProject project = createProject("artifactId", "1.0-SNAPSHOT");
+        Project project = createProject("artifactId", "1.0-SNAPSHOT");
         when(mockPrompter.prompt(
-                        startsWith("What is the release version for \"" + project.getName() + "\"?"), eq("1.0")))
+                        startsWith("What is the release version for \"" + ReleaseUtil.getProjectName(project) + "\"?"),
+                        eq("1.0")))
                 .thenReturn("2.0");
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(project);
+        List<Project> reactorProjects = Collections.singletonList(project);
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -105,25 +105,28 @@ class MapVersionsPhaseTest {
                 "Check mapped versions");
 
         verify(mockPrompter)
-                .prompt(startsWith("What is the release version for \"" + project.getName() + "\"?"), eq("1.0"));
+                .prompt(
+                        startsWith("What is the release version for \"" + ReleaseUtil.getProjectName(project) + "\"?"),
+                        eq("1.0"));
     }
 
     @Test
     void testSimulateSnapshotMapReleaseVersions() throws Exception {
         // prepare
-        MavenProject project = createProject("artifactId", "1.0-SNAPSHOT");
+        Project project = createProject("artifactId", "1.0-SNAPSHOT");
         when(mockPrompter.prompt(
-                        startsWith("What is the release version for \"" + project.getName() + "\"?"), eq("1.0")))
+                        startsWith("What is the release version for \"" + ReleaseUtil.getProjectName(project) + "\"?"),
+                        eq("1.0")))
                 .thenReturn("2.0");
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(project);
+        List<Project> reactorProjects = Collections.singletonList(project);
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -131,26 +134,29 @@ class MapVersionsPhaseTest {
                 ReleaseUtils.buildReleaseDescriptor(builder).getProjectReleaseVersion("groupId:artifactId"),
                 "Check mapped versions");
         verify(mockPrompter)
-                .prompt(startsWith("What is the release version for \"" + project.getName() + "\"?"), eq("1.0"));
+                .prompt(
+                        startsWith("What is the release version for \"" + ReleaseUtil.getProjectName(project) + "\"?"),
+                        eq("1.0"));
     }
 
     // MRELEASE-403: Release plugin ignores given version number
     @Test
     void testMapReleaseVersionsInteractiveAddZeroIncremental() throws Exception {
         // prepare
-        MavenProject project = createProject("artifactId", "1.0-SNAPSHOT");
+        Project project = createProject("artifactId", "1.0-SNAPSHOT");
         when(mockPrompter.prompt(
-                        startsWith("What is the release version for \"" + project.getName() + "\"?"), eq("1.0")))
+                        startsWith("What is the release version for \"" + ReleaseUtil.getProjectName(project) + "\"?"),
+                        eq("1.0")))
                 .thenReturn("1.0.0");
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(project);
+        List<Project> reactorProjects = Collections.singletonList(project);
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -162,7 +168,7 @@ class MapVersionsPhaseTest {
         builder = new ReleaseDescriptorBuilder();
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -170,7 +176,9 @@ class MapVersionsPhaseTest {
                 ReleaseUtils.buildReleaseDescriptor(builder).getProjectReleaseVersion("groupId:artifactId"),
                 "Check mapped versions");
         verify(mockPrompter, times(2))
-                .prompt(startsWith("What is the release version for \"" + project.getName() + "\"?"), eq("1.0"));
+                .prompt(
+                        startsWith("What is the release version for \"" + ReleaseUtil.getProjectName(project) + "\"?"),
+                        eq("1.0"));
     }
 
     /**
@@ -179,19 +187,20 @@ class MapVersionsPhaseTest {
     @Test
     void testMapReleaseVersionsInteractiveWithSnaphotVersion() throws Exception {
         // prepare
-        MavenProject project = createProject("artifactId", "SNAPSHOT");
+        Project project = createProject("artifactId", "SNAPSHOT");
         when(mockPrompter.prompt(
-                        startsWith("What is the release version for \"" + project.getName() + "\"?"), eq("1.0")))
+                        startsWith("What is the release version for \"" + ReleaseUtil.getProjectName(project) + "\"?"),
+                        eq("1.0")))
                 .thenReturn("2.0");
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(project);
+        List<Project> reactorProjects = Collections.singletonList(project);
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -203,7 +212,7 @@ class MapVersionsPhaseTest {
         builder = new ReleaseDescriptorBuilder();
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -212,7 +221,9 @@ class MapVersionsPhaseTest {
                 "Check mapped versions");
 
         verify(mockPrompter, times(2))
-                .prompt(startsWith("What is the release version for \"" + project.getName() + "\"?"), eq("1.0"));
+                .prompt(
+                        startsWith("What is the release version for \"" + ReleaseUtil.getProjectName(project) + "\"?"),
+                        eq("1.0"));
     }
 
     /**
@@ -221,7 +232,7 @@ class MapVersionsPhaseTest {
     @Test
     void testMapReleaseVersionsNonInteractiveWithExplicitVersion() throws Exception {
         // prepare
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "SNAPSHOT"));
 
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
@@ -230,7 +241,7 @@ class MapVersionsPhaseTest {
         builder.addReleaseVersion("groupId:artifactId", "2.0");
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -243,7 +254,7 @@ class MapVersionsPhaseTest {
         builder.addReleaseVersion("groupId:artifactId", "2.0");
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -258,13 +269,13 @@ class MapVersionsPhaseTest {
     @Test
     void testMapReleaseVersionsForSubModuleWithExplicitVersion() throws Exception {
         // prepare
-        MavenProject rootProject = createProject("rootArtifactId", "SNAPSHOT");
-        rootProject.setExecutionRoot(true);
+        TestProject rootProject = createProject("rootArtifactId", "SNAPSHOT");
+        rootProject.setTopProject(true);
 
-        final MavenProject moduleProject = createProject("artifactId", "SNAPSHOT");
+        final TestProject moduleProject = createProject("artifactId", "SNAPSHOT");
         moduleProject.setParent(rootProject);
 
-        List<MavenProject> reactorProjects = Arrays.asList(rootProject, moduleProject);
+        List<Project> reactorProjects = Arrays.asList(rootProject, moduleProject);
 
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
@@ -275,7 +286,7 @@ class MapVersionsPhaseTest {
                 .addReleaseVersion("groupId:artifactId", "2.0");
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -288,7 +299,7 @@ class MapVersionsPhaseTest {
                 "Check mapped versions");
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -307,13 +318,13 @@ class MapVersionsPhaseTest {
     @Test
     void testMapDevelopmentVersionsForSubModuleWithExplicitVersion() throws Exception {
         // prepare
-        MavenProject rootProject = createProject("rootArtifactId", "1.0");
-        rootProject.setExecutionRoot(true);
+        TestProject rootProject = createProject("rootArtifactId", "1.0");
+        rootProject.setTopProject(true);
 
-        final MavenProject moduleProject = createProject("artifactId", "1.0");
+        final TestProject moduleProject = createProject("artifactId", "1.0");
         moduleProject.setParent(rootProject);
 
-        List<MavenProject> reactorProjects = Arrays.asList(rootProject, moduleProject);
+        List<Project> reactorProjects = Arrays.asList(rootProject, moduleProject);
 
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
@@ -325,7 +336,7 @@ class MapVersionsPhaseTest {
                 .addDevelopmentVersion("groupId:artifactId", "2.0-SNAPSHOT");
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -338,7 +349,7 @@ class MapVersionsPhaseTest {
                 "Check mapped versions");
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -357,13 +368,13 @@ class MapVersionsPhaseTest {
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -378,13 +389,13 @@ class MapVersionsPhaseTest {
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -396,20 +407,21 @@ class MapVersionsPhaseTest {
     @Test
     void testMapDevVersionsInteractive() throws Exception {
         // prepare
-        MavenProject project = createProject("artifactId", "1.0");
+        Project project = createProject("artifactId", "1.0");
         when(mockPrompter.prompt(
-                        startsWith("What is the new development version for \"" + project.getName() + "\"?"),
+                        startsWith("What is the new development version for \"" + ReleaseUtil.getProjectName(project)
+                                + "\"?"),
                         eq("1.1-SNAPSHOT")))
                 .thenReturn("2.0-SNAPSHOT");
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(project);
+        List<Project> reactorProjects = Collections.singletonList(project);
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -421,7 +433,7 @@ class MapVersionsPhaseTest {
         builder = new ReleaseDescriptorBuilder();
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -431,7 +443,8 @@ class MapVersionsPhaseTest {
 
         verify(mockPrompter, times(2))
                 .prompt(
-                        startsWith("What is the new development version for \"" + project.getName() + "\"?"),
+                        startsWith("What is the new development version for \"" + ReleaseUtil.getProjectName(project)
+                                + "\"?"),
                         eq("1.1-SNAPSHOT"));
     }
 
@@ -443,15 +456,15 @@ class MapVersionsPhaseTest {
         // prepare
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
-        MavenProject project = createProject("artifactId", "1.0");
+        Project project = createProject("artifactId", "1.0");
 
-        List<MavenProject> reactorProjects = Collections.singletonList(project);
+        List<Project> reactorProjects = Collections.singletonList(project);
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setUpdateWorkingCopyVersions(false);
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -464,7 +477,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateWorkingCopyVersions(false);
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -479,13 +492,13 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -498,7 +511,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -515,14 +528,14 @@ class MapVersionsPhaseTest {
         // prepare
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
         builder.addDevelopmentVersion("groupId:artifactId", "2-SNAPSHOT");
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -536,7 +549,7 @@ class MapVersionsPhaseTest {
         builder.addDevelopmentVersion("groupId:artifactId", "2-SNAPSHOT");
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -552,14 +565,13 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
 
         // execute
         try {
-            phase.execute(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
             fail("Expected an exception");
         } catch (ReleaseExecutionException e) {
@@ -571,8 +583,7 @@ class MapVersionsPhaseTest {
 
         // execute
         try {
-            phase.simulate(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
             fail("Expected an exception");
         } catch (ReleaseExecutionException e) {
@@ -586,21 +597,22 @@ class MapVersionsPhaseTest {
     @Test
     void testAdjustVersionInteractive() throws Exception {
         // prepare
-        MavenProject project = createProject("artifactId", "foo");
+        Project project = createProject("artifactId", "foo");
 
         when(mockPrompter.prompt(
-                        startsWith("What is the new development version for \"" + project.getName() + "\"?"),
+                        startsWith("What is the new development version for \"" + ReleaseUtil.getProjectName(project)
+                                + "\"?"),
                         eq("1.1-SNAPSHOT")))
                 .thenReturn("2.0-SNAPSHOT");
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(project);
+        List<Project> reactorProjects = Collections.singletonList(project);
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -612,7 +624,7 @@ class MapVersionsPhaseTest {
         builder = new ReleaseDescriptorBuilder();
 
         // execute
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -622,7 +634,8 @@ class MapVersionsPhaseTest {
 
         verify(mockPrompter, times(2))
                 .prompt(
-                        startsWith("What is the new development version for \"" + project.getName() + "\"?"),
+                        startsWith("What is the new development version for \"" + ReleaseUtil.getProjectName(project)
+                                + "\"?"),
                         eq("1.1-SNAPSHOT"));
     }
 
@@ -631,14 +644,13 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "foo"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "foo"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
 
         try {
-            phase.execute(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
             fail("Expected an exception");
         } catch (ReleaseExecutionException e) {
@@ -649,8 +661,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         try {
-            phase.simulate(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
             fail("Expected an exception");
         } catch (ReleaseExecutionException e) {
@@ -664,14 +675,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setDefaultDevelopmentVersion("1.1.1-SNAPSHOT");
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -689,14 +700,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setDefaultDevelopmentVersion("1.1.1-SNAPSHOT");
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -714,7 +725,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -722,7 +733,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -740,7 +751,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -748,7 +759,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -766,14 +777,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -791,14 +802,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -816,13 +827,13 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setDefaultDevelopmentVersion("1.1.1-SNAPSHOT");
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -840,13 +851,13 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setDefaultDevelopmentVersion("1.1.1-SNAPSHOT");
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -864,14 +875,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setDefaultDevelopmentVersion("1.1.1-SNAPSHOT");
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -889,14 +900,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setDefaultDevelopmentVersion("1.1.1-SNAPSHOT");
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -914,13 +925,13 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -938,13 +949,13 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -962,14 +973,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -987,14 +998,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1012,14 +1023,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1037,14 +1048,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1062,14 +1073,14 @@ class MapVersionsPhaseTest {
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1087,14 +1098,14 @@ class MapVersionsPhaseTest {
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1112,14 +1123,14 @@ class MapVersionsPhaseTest {
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1137,14 +1148,14 @@ class MapVersionsPhaseTest {
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1162,7 +1173,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -1170,7 +1181,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1188,7 +1199,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -1196,7 +1207,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1214,7 +1225,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -1222,7 +1233,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1240,7 +1251,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -1248,7 +1259,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1266,7 +1277,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -1274,7 +1285,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1292,7 +1303,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -1300,7 +1311,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1318,7 +1329,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -1326,7 +1337,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         /*
@@ -1349,7 +1360,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -1357,7 +1368,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         /*
@@ -1380,7 +1391,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1388,7 +1399,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateBranchVersions(true);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         // updateBranchVersions is set to true, so suggest the next snapshot version
@@ -1409,7 +1420,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1417,7 +1428,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateBranchVersions(true);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         // updateBranchVersions is set to true, so suggest the next snapshot version
@@ -1439,7 +1450,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1448,7 +1459,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateBranchVersions(true);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1467,7 +1478,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1476,7 +1487,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateBranchVersions(true);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1494,7 +1505,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1502,7 +1513,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateBranchVersions(true);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1520,7 +1531,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1528,7 +1539,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateBranchVersions(true);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1551,14 +1562,14 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setUpdateBranchVersions(true);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         // org.apache.maven.release:maven-release-manager:(,2.4) > 1.2-SNAPSHOT
@@ -1577,14 +1588,14 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setUpdateBranchVersions(true);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         // org.apache.maven.release:maven-release-manager:(,2.4) > 1.2-SNAPSHOT
@@ -1603,7 +1614,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1611,7 +1622,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateVersionsToSnapshot(true);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         // org.apache.maven.release:maven-release-manager:(,2.4) > 1.2-SNAPSHOT (yes, one step back!)
@@ -1637,7 +1648,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1645,7 +1656,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateVersionsToSnapshot(true);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         // org.apache.maven.release:maven-release-manager:(,2.4) > 1.2-SNAPSHOT (yes, one step back!)
@@ -1671,7 +1682,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1679,7 +1690,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateVersionsToSnapshot(true);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         // org.apache.maven.release:maven-release-manager:(,2.4) > 1.2-SNAPSHOT
@@ -1698,7 +1709,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1706,7 +1717,7 @@ class MapVersionsPhaseTest {
         builder.setUpdateVersionsToSnapshot(true);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         // org.apache.maven.release:maven-release-manager:(,2.4) > 1.2-SNAPSHOT
@@ -1720,13 +1731,13 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         /*
@@ -1749,13 +1760,13 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         /*
@@ -1778,14 +1789,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setUpdateWorkingCopyVersions(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -1803,14 +1814,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setUpdateWorkingCopyVersions(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -1828,14 +1839,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         // org.apache.maven.release:maven-release-manager:(,2.4) > true
         // org.apache.maven.release:maven-release-manager:[2.4,) > false
         builder.setInteractive(false);
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -1853,7 +1864,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1862,7 +1873,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -1880,13 +1891,13 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1904,13 +1915,13 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -1928,14 +1939,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setUpdateWorkingCopyVersions(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -1953,14 +1964,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setUpdateWorkingCopyVersions(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertNull(
@@ -1978,7 +1989,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -1988,7 +1999,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -2006,7 +2017,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
@@ -2016,7 +2027,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -2036,14 +2047,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setUpdateWorkingCopyVersions(true);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         verify(mockPrompter).prompt(startsWith("What is the new working copy version for"), eq("1.3-SNAPSHOT"));
@@ -2057,14 +2068,14 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setBranchCreation(true);
         builder.setUpdateWorkingCopyVersions(true);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         verify(mockPrompter).prompt(startsWith("What is the new working copy version for"), eq("1.3-SNAPSHOT"));
@@ -2076,7 +2087,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = new ArrayList<>();
+        List<Project> reactorProjects = new ArrayList<>();
         Collections.addAll(
                 reactorProjects, createProject("artifactId", "1.2-SNAPSHOT"), createProject("module1", "2.0"));
 
@@ -2085,7 +2096,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -2110,7 +2121,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = new ArrayList<>();
+        List<Project> reactorProjects = new ArrayList<>();
         Collections.addAll(
                 reactorProjects, createProject("artifactId", "1.2-SNAPSHOT"), createProject("module1", "2.0"));
 
@@ -2119,7 +2130,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -2144,7 +2155,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2.1-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2.1-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -2152,7 +2163,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -2170,7 +2181,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2.1-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2.1-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -2178,7 +2189,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -2197,7 +2208,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2.1-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2.1-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -2205,7 +2216,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -2224,7 +2235,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2.1-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.2.1-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setAutoVersionSubmodules(true);
@@ -2232,7 +2243,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -2252,18 +2263,16 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase mapDevelopmentphase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects =
-                Collections.singletonList(createProject("artifactId", "MYB_200909-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "MYB_200909-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setDefaultReleaseVersion("PPX");
         builder.setDefaultDevelopmentVersion("MYB_200909-SNAPSHOT");
 
         // test
-        mapReleasephase.execute(
-                ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        mapReleasephase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
         mapDevelopmentphase.execute(
-                ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+                ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -2286,12 +2295,12 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         verify(mockPrompter, times(2))
@@ -2307,13 +2316,13 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setDefaultDevelopmentVersion("");
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         verify(mockPrompter).prompt(startsWith("What is the new development version for "), eq("1.12-SNAPSHOT"));
@@ -2327,13 +2336,13 @@ class MapVersionsPhaseTest {
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setDefaultReleaseVersion("");
 
         // test
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         verify(mockPrompter).prompt(startsWith("What is the release version for "), eq("1.11"));
@@ -2348,7 +2357,7 @@ class MapVersionsPhaseTest {
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("artifactId", "1.0-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setProjectVersionPolicyId("UNKNOWN");
@@ -2357,9 +2366,7 @@ class MapVersionsPhaseTest {
         ReleaseExecutionException e = assertThrows(
                 ReleaseExecutionException.class,
                 () -> phase.execute(
-                        ReleaseUtils.buildReleaseDescriptor(builder),
-                        new DefaultReleaseEnvironment(),
-                        reactorProjects));
+                        ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects));
         assertInstanceOf(PolicyException.class, e.getCause());
     }
 
@@ -2369,7 +2376,7 @@ class MapVersionsPhaseTest {
         MapBranchVersionsPhase phase =
                 new MapBranchVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setDefaultReleaseVersion("3.0");
@@ -2378,8 +2385,7 @@ class MapVersionsPhaseTest {
 
         // test
         try {
-            phase.execute(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
             fail("Should fail due to invalid version");
         } catch (ReleaseExecutionException e) {
             assertEquals("3.0 is invalid, expected a snapshot", e.getMessage());
@@ -2392,7 +2398,7 @@ class MapVersionsPhaseTest {
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setDefaultReleaseVersion("3.0-SNAPSHOT");
@@ -2400,8 +2406,7 @@ class MapVersionsPhaseTest {
 
         // test
         try {
-            phase.execute(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
             fail("Should fail due to invalid version");
         } catch (ReleaseExecutionException e) {
             assertEquals("3.0-SNAPSHOT is invalid, expected a non-snapshot", e.getMessage());
@@ -2414,7 +2419,7 @@ class MapVersionsPhaseTest {
         MapDevelopmentVersionsPhase phase =
                 new MapDevelopmentVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
+        List<Project> reactorProjects = Collections.singletonList(createProject("bar", "1.11-SNAPSHOT"));
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setDefaultDevelopmentVersion("3.0");
@@ -2422,8 +2427,7 @@ class MapVersionsPhaseTest {
 
         // test
         try {
-            phase.execute(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
             fail("Should fail due to invalid version");
         } catch (ReleaseExecutionException e) {
             assertEquals("3.0 is invalid, expected a snapshot", e.getMessage());
@@ -2436,7 +2440,7 @@ class MapVersionsPhaseTest {
         MapReleaseVersionsPhase phase =
                 new MapReleaseVersionsPhase(scmRepositoryConfigurator, mockPrompter, versionPolicies);
 
-        List<MavenProject> reactorProjects = new ArrayList<>();
+        List<Project> reactorProjects = new ArrayList<>();
         Collections.addAll(
                 reactorProjects,
                 createProject("bar", "1.11-SNAPSHOT"),
@@ -2452,7 +2456,7 @@ class MapVersionsPhaseTest {
         builder.setInteractive(false);
 
         // test
-        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.simulate(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -2479,23 +2483,25 @@ class MapVersionsPhaseTest {
                 "Check development versions");
     }
 
-    private static MavenProject createProject(String artifactId, String version) {
-        Model model = new Model();
-        model.setGroupId("groupId");
-        model.setArtifactId(artifactId);
-        model.setVersion(version);
-        MavenProject mavenProject = new MavenProject(model);
-        mavenProject.setOriginalModel(model);
-        return mavenProject;
+    private TestProject createProject(String artifactId, String version) {
+        Model model = Model.newBuilder()
+                .groupId("groupId")
+                .artifactId(artifactId)
+                .version(version)
+                .build();
+        try {
+            return TestProject.written(testSession.getSession(), model);
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
     }
 
-    private static MavenProject createProjectWithPomFile(String artifactId, String version, String pathName) {
-        Model model = new Model();
-        model.setGroupId("groupId");
-        model.setArtifactId(artifactId);
-        model.setVersion(version);
-        MavenProject mavenProject = new MavenProject(model);
-        mavenProject.setFile(new File(pathName));
-        return mavenProject;
+    private static Project createProjectWithPomFile(String artifactId, String version, String pathName) {
+        Model model = Model.newBuilder()
+                .groupId("groupId")
+                .artifactId(artifactId)
+                .version(version)
+                .build();
+        return TestProject.of(model, new File(pathName).toPath());
     }
 }

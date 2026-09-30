@@ -23,10 +23,12 @@ import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.services.Prompter;
+import org.apache.maven.api.services.PrompterException;
 import org.apache.maven.scm.manager.NoSuchScmProviderException;
 import org.apache.maven.scm.provider.ScmProvider;
 import org.apache.maven.scm.repository.ScmRepository;
@@ -41,9 +43,8 @@ import org.apache.maven.shared.release.policy.version.VersionPolicyRequest;
 import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
 import org.apache.maven.shared.release.util.CiFriendlyVersion;
 import org.apache.maven.shared.release.util.ReleaseUtil;
+import org.apache.maven.shared.release.versions.ArtifactKeys;
 import org.apache.maven.shared.release.versions.VersionParseException;
-import org.codehaus.plexus.components.interactivity.Prompter;
-import org.codehaus.plexus.components.interactivity.PrompterException;
 import org.slf4j.Logger;
 
 import static java.util.Objects.requireNonNull;
@@ -119,9 +120,7 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
 
     @Override
     public ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException {
         ReleaseResult result = new ReleaseResult();
 
@@ -131,13 +130,13 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
             exclusionPatterns.addAll(additionalExcludes);
         }
 
-        MavenProject rootProject = ReleaseUtil.getRootProject(reactorProjects);
+        Project rootProject = ReleaseUtil.getRootProject(reactorProjects);
 
-        if (releaseDescriptor.isAutoVersionSubmodules() && ArtifactUtils.isSnapshot(rootProject.getVersion())) {
+        if (releaseDescriptor.isAutoVersionSubmodules() && ArtifactKeys.isSnapshot(rootProject.getVersion())) {
             // get the root project
-            MavenProject project = rootProject;
+            Project project = rootProject;
 
-            String projectId = ArtifactUtils.versionlessKey(project.getGroupId(), project.getArtifactId());
+            String projectId = ArtifactKeys.versionlessKey(project.getGroupId(), project.getArtifactId());
 
             String nextVersion = resolveNextVersion(project, projectId, releaseDescriptor, releaseEnvironment);
 
@@ -149,15 +148,15 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
                 releaseDescriptor.addDevelopmentVersion(projectId, nextVersion);
             }
 
-            for (MavenProject subProject : reactorProjects) {
-                String subProjectId = ArtifactUtils.versionlessKey(subProject.getGroupId(), subProject.getArtifactId());
+            for (Project subProject : reactorProjects) {
+                String subProjectId = ArtifactKeys.versionlessKey(subProject.getGroupId(), subProject.getArtifactId());
 
                 if (convertToSnapshot) {
                     String subProjectNextVersion = releaseDescriptor.getProjectDevelopmentVersion(subProjectId);
                     String v;
                     if (subProjectNextVersion != null) {
                         v = subProjectNextVersion;
-                    } else if (ArtifactUtils.isSnapshot(subProject.getVersion())) {
+                    } else if (ArtifactKeys.isSnapshot(subProject.getVersion())) {
                         v = nextVersion;
                     } else {
                         v = subProject.getVersion();
@@ -179,15 +178,16 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
             }
         } else {
 
-            for (MavenProject project : reactorProjects) {
-                String projectId = ArtifactUtils.versionlessKey(project.getGroupId(), project.getArtifactId());
+            for (Project project : reactorProjects) {
+                String projectId = ArtifactKeys.versionlessKey(project.getGroupId(), project.getArtifactId());
 
                 boolean isExcludedPathFound = false;
-                if (project.getFile() != null) {
+                if (ReleaseUtil.getPomFile(project) != null) {
                     isExcludedPathFound = exclusionPatterns.stream()
                             .anyMatch(exclusionPattern -> FileSystems.getDefault()
                                     .getPathMatcher("glob:" + exclusionPattern)
-                                    .matches(Paths.get(project.getFile().getPath())));
+                                    .matches(Paths.get(
+                                            ReleaseUtil.getPomFile(project).getPath())));
                 }
                 if (!isExcludedPathFound) {
                     String nextVersion = resolveNextVersion(project, projectId, releaseDescriptor, releaseEnvironment);
@@ -208,7 +208,7 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
     }
 
     private String resolveNextVersion(
-            MavenProject project,
+            Project project,
             String projectId,
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment)
@@ -217,7 +217,7 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
         if (convertToBranch) {
             // no branch modification
             if (!(releaseDescriptor.isUpdateBranchVersions()
-                    && (ArtifactUtils.isSnapshot(project.getVersion())
+                    && (ArtifactKeys.isSnapshot(project.getVersion())
                             || releaseDescriptor.isUpdateVersionsToSnapshot()))) {
                 return project.getVersion();
             }
@@ -228,7 +228,7 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
             defaultVersion = getReleaseVersion(projectId, releaseDescriptor);
         } else if (releaseDescriptor.isBranchCreation()) {
             // no working copy modification
-            if (!(ArtifactUtils.isSnapshot(project.getVersion()) && releaseDescriptor.isUpdateWorkingCopyVersions())) {
+            if (!(ArtifactKeys.isSnapshot(project.getVersion()) && releaseDescriptor.isUpdateWorkingCopyVersions())) {
                 return project.getVersion();
             }
 
@@ -247,7 +247,7 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
         String nextVersion = defaultVersion;
         String messageFormat = null;
         try {
-            while (nextVersion == null || ArtifactUtils.isSnapshot(nextVersion) != convertToSnapshot) {
+            while (nextVersion == null || ArtifactKeys.isSnapshot(nextVersion) != convertToSnapshot) {
                 if (suggestedVersion == null) {
                     String baseVersion = null;
                     if (convertToSnapshot) {
@@ -282,7 +282,8 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
                         messageFormat = "What is the " + getContextString(releaseDescriptor) + " version for \"%s\"? ("
                                 + buffer().project("%s") + ")";
                     }
-                    String message = String.format(messageFormat, project.getName(), project.getArtifactId());
+                    String message =
+                            String.format(messageFormat, ReleaseUtil.getProjectName(project), project.getArtifactId());
                     nextVersion = prompter.prompt(message, suggestedVersion);
 
                     // @todo validate next version, maybe with DefaultArtifactVersion
@@ -314,11 +315,11 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
     }
 
     private String resolveSuggestedVersion(
-            MavenProject project,
+            Project project,
             String baseVersion,
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment)
-            throws PolicyException, VersionParseException {
+            throws PolicyException, VersionParseException, ReleaseExecutionException {
         String policyId = releaseDescriptor.getProjectVersionPolicyId();
         VersionPolicy policy = versionPolicies.get(policyId);
         if (policy == null) {
@@ -332,8 +333,10 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
         }
         request.setWorkingDirectory(releaseDescriptor.getWorkingDirectory());
 
-        if (CiFriendlyVersion.isCiFriendlyVersion(getOriginalVersion(project))) {
-            String sha1 = CiFriendlyVersion.resolveSha1Property(project.getProperties(), releaseDescriptor);
+        if (CiFriendlyVersion.isCiFriendlyVersion(getOriginalVersion(releaseEnvironment, project))) {
+            Properties properties = new Properties();
+            properties.putAll(project.getModel().getProperties());
+            String sha1 = CiFriendlyVersion.resolveSha1Property(properties, releaseDescriptor);
             request.setVersion(baseVersion.replace(sha1, ""));
         }
 
@@ -362,15 +365,12 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
                 : policy.getReleaseVersion(request).getVersion();
     }
 
-    private static String getOriginalVersion(MavenProject project) {
+    private static String getOriginalVersion(ReleaseEnvironment releaseEnvironment, Project project)
+            throws ReleaseExecutionException {
         String version = null;
         while (version == null && project != null) {
-            if (project.getOriginalModel() != null) {
-                version = project.getOriginalModel().getVersion();
-            } else {
-                version = project.getVersion();
-            }
-            project = project.getParent();
+            version = ReleaseUtil.readOriginalModel(releaseEnvironment, project).getVersion();
+            project = project.getParent().orElse(null);
         }
         return version;
     }
@@ -405,9 +405,7 @@ public abstract class AbstractMapVersionsPhase extends AbstractReleasePhase {
 
     @Override
     public ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException {
         ReleaseResult result = new ReleaseResult();
 

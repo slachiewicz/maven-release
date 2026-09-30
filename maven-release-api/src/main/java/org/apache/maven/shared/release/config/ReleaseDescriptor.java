@@ -20,7 +20,7 @@ package org.apache.maven.shared.release.config;
 
 import java.util.List;
 
-import org.apache.maven.model.Scm;
+import org.apache.maven.api.model.Scm;
 
 /**
  * <p>ReleaseDescriptor interface.</p>

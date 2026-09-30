@@ -25,81 +25,89 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class DomTripExtensionTest {
+/**
+ * The coordinate view serves the {@code dependency}, {@code extension}, report {@code plugin} and {@code parent}
+ * elements, which Maven 3 modelled with one class each.
+ */
+class DomTripMavenCoordinateTest {
 
-    private DomTripExtension createExtension(String xml) {
+    private DomTripMavenCoordinate createCoordinate(String xml) {
         Document document = Document.of(xml);
         Editor editor = new Editor(document);
-        return new DomTripExtension(document.root(), editor);
+        return new DomTripMavenCoordinate(document.root(), editor);
     }
 
     @Test
     void testGetArtifactIdMissing() {
-        assertNull(createExtension("<extension></extension>").getArtifactId());
+        assertNull(createCoordinate("<dependency></dependency>").getArtifactId());
     }
 
     @Test
     void testGetArtifactIdPresent() {
         assertEquals(
                 "ARTIFACTID",
-                createExtension("<extension><artifactId>ARTIFACTID</artifactId></extension>")
+                createCoordinate("<dependency><artifactId>ARTIFACTID</artifactId></dependency>")
                         .getArtifactId());
     }
 
     @Test
     void testGetGroupIdMissing() {
-        assertNull(createExtension("<extension></extension>").getGroupId());
+        assertNull(createCoordinate("<extension></extension>").getGroupId());
     }
 
     @Test
     void testGetGroupIdPresent() {
         assertEquals(
                 "GROUPID",
-                createExtension("<extension><groupId>GROUPID</groupId></extension>")
+                createCoordinate("<extension><groupId>GROUPID</groupId></extension>")
                         .getGroupId());
     }
 
     @Test
     void testGetVersionMissing() {
-        assertNull(createExtension("<extension></extension>").getVersion());
+        assertNull(createCoordinate("<dependency></dependency>").getVersion());
     }
 
     @Test
     void testGetVersionPresent() {
         assertEquals(
                 "VERSION",
-                createExtension("<extension><version>VERSION</version></extension>")
+                createCoordinate("<dependency><version>VERSION</version></dependency>")
                         .getVersion());
     }
 
     @Test
+    void testGetParentVersion() {
+        assertEquals(
+                "1.0",
+                createCoordinate("<parent><version>1.0</version></parent>").getVersion());
+    }
+
+    @Test
     void testSetVersion() {
-        String xml = "<extension><version>OLD_VERSION</version></extension>";
+        String xml = "<dependency><version>OLD_VERSION</version></dependency>";
         Document document = Document.of(xml);
         Editor editor = new Editor(document);
         Element root = document.root();
-        new DomTripExtension(root, editor).setVersion("NEW_VERSION");
+        new DomTripMavenCoordinate(root, editor).setVersion("NEW_VERSION");
         assertEquals("NEW_VERSION", root.childTextTrimmed("version"));
     }
 
     @Test
-    void testGetName() {
-        assertEquals("extension", createExtension("<extension></extension>").getName());
+    void testSetVersionMissingIsNotAdded() {
+        String xml = "<dependency></dependency>";
+        Document document = Document.of(xml);
+        Editor editor = new Editor(document);
+        Element root = document.root();
+        new DomTripMavenCoordinate(root, editor).setVersion("NEW_VERSION");
+        assertNull(root.childTextTrimmed("version"));
     }
 
     @Test
-    void testSetArtifactId() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createExtension("<extension/>").setArtifactId(null));
-    }
-
-    @Test
-    void testSetGroupId() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createExtension("<extension/>").setGroupId(null));
+    void testGetNameIsTheElementName() {
+        assertEquals("dependency", createCoordinate("<dependency></dependency>").getName());
+        assertEquals("extension", createCoordinate("<extension></extension>").getName());
+        assertEquals("parent", createCoordinate("<parent></parent>").getName());
     }
 }

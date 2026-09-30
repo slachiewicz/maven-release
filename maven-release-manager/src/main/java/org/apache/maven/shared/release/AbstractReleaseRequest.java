@@ -20,7 +20,7 @@ package org.apache.maven.shared.release;
 
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 
 /**
@@ -32,7 +32,7 @@ import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 public abstract class AbstractReleaseRequest {
     private ReleaseDescriptorBuilder releaseDescriptorBuilder;
 
-    private List<MavenProject> reactorProjects;
+    private List<Project> reactorProjects;
 
     private ReleaseManagerListener releaseManagerListener;
 
@@ -59,7 +59,7 @@ public abstract class AbstractReleaseRequest {
      *
      * @return the reactorProjects
      */
-    public List<MavenProject> getReactorProjects() {
+    public List<Project> getReactorProjects() {
         return reactorProjects;
     }
 
@@ -68,7 +68,7 @@ public abstract class AbstractReleaseRequest {
      *
      * @param reactorProjects the reactorProjects to set
      */
-    public void setReactorProjects(List<MavenProject> reactorProjects) {
+    public void setReactorProjects(List<Project> reactorProjects) {
         this.reactorProjects = reactorProjects;
     }
 

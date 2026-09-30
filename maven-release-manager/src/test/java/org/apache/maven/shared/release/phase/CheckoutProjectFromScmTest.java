@@ -18,13 +18,12 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.io.File;
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
 import org.apache.maven.scm.CommandParameter;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmTag;
@@ -37,12 +36,10 @@ import org.apache.maven.scm.repository.ScmRepositoryException;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.scm.ReleaseScmRepositoryException;
-import org.codehaus.plexus.testing.PlexusTest;
 import org.junit.jupiter.api.Test;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -56,7 +53,6 @@ import static org.mockito.Mockito.when;
 /**
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
 class CheckoutProjectFromScmTest extends AbstractReleaseTestCase {
 
     @Inject
@@ -88,11 +84,11 @@ class CheckoutProjectFromScmTest extends AbstractReleaseTestCase {
         scmManager.addScmRepositoryForUrl(scmUrl, repository);
 
         String dir = "scm-commit/single-pom";
-        List<MavenProject> reactorProjects = createReactorProjects(dir, dir, null);
+        List<Project> reactorProjects = createReactorProjects(dir, dir, null);
         builder.setWorkingDirectory(getWorkingDirectory(dir).toString());
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // prepare
         assertEquals("", ReleaseUtils.buildReleaseDescriptor(builder).getScmRelativePathProjectDirectory());
@@ -131,11 +127,11 @@ class CheckoutProjectFromScmTest extends AbstractReleaseTestCase {
         scmManager.addScmRepositoryForUrl(scmUrl, repository);
 
         String dir = "scm-commit/multimodule-with-deep-subprojects";
-        List<MavenProject> reactorProjects = createReactorProjects(dir, dir, null);
+        List<Project> reactorProjects = createReactorProjects(dir, dir, null);
         builder.setWorkingDirectory(getWorkingDirectory(dir).toString());
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals("", ReleaseUtils.buildReleaseDescriptor(builder).getScmRelativePathProjectDirectory());
@@ -173,13 +169,13 @@ class CheckoutProjectFromScmTest extends AbstractReleaseTestCase {
         scmManager.setScmProvider(scmProviderMock);
         scmManager.addScmRepositoryForUrl(scmUrl, repository);
 
-        List<MavenProject> reactorProjects =
+        List<Project> reactorProjects =
                 createReactorProjects("rewrite-for-release/pom-with-parent-flat", "root-project");
         builder.setWorkingDirectory(
                 getWorkingDirectory("rewrite-for-release/pom-with-parent-flat").toString());
 
         // execute
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         // verify
         assertEquals(
@@ -207,14 +203,13 @@ class CheckoutProjectFromScmTest extends AbstractReleaseTestCase {
         scmManager.setException(new NoSuchScmProviderException("..."));
 
         String dir = "scm-commit/single-pom";
-        List<MavenProject> reactorProjects = createReactorProjects(dir, dir, null);
+        List<Project> reactorProjects = createReactorProjects(dir, dir, null);
 
         // execute
         try {
             builder.setUseReleaseProfile(false);
 
-            phase.execute(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
             fail("commit should have failed");
         } catch (ReleaseExecutionException e) {
@@ -232,14 +227,13 @@ class CheckoutProjectFromScmTest extends AbstractReleaseTestCase {
         scmManager.setException(new ScmRepositoryException("..."));
 
         String dir = "scm-commit/single-pom";
-        List<MavenProject> reactorProjects = createReactorProjects(dir, dir, null);
+        List<Project> reactorProjects = createReactorProjects(dir, dir, null);
 
         // execute
         try {
             builder.setUseReleaseProfile(false);
 
-            phase.execute(
-                    ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+            phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
             fail("commit should have failed");
         } catch (ReleaseScmRepositoryException e) {

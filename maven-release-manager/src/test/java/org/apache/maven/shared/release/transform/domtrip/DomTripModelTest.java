@@ -21,15 +21,17 @@ package org.apache.maven.shared.release.transform.domtrip;
 import eu.maveniverse.domtrip.Document;
 import eu.maveniverse.domtrip.Editor;
 import eu.maveniverse.domtrip.Element;
-import org.apache.maven.model.Model;
-import org.apache.maven.model.Scm;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
+import org.apache.maven.shared.release.transform.PomModel;
+import org.apache.maven.shared.release.transform.SimplePomScm;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DomTripModelTest {
     private final ReleaseDescriptor releaseDescriptor = new ReleaseDescriptorBuilder().build();
@@ -55,10 +57,10 @@ class DomTripModelTest {
         String xml = "<project></project>";
         Document document = Document.of(xml);
         Editor editor = new Editor(document);
-        Model model = new DomTripModel(document.root(), editor, releaseDescriptor);
+        PomModel model = new DomTripModel(document.root(), editor, releaseDescriptor);
         assertNull(model.getScm());
 
-        model.setScm(new Scm());
+        model.setScm(new SimplePomScm());
         assertNotNull(model.getScm());
 
         model.setScm(null);
@@ -71,7 +73,7 @@ class DomTripModelTest {
         Document document = Document.of(xml);
         Editor editor = new Editor(document);
         Element root = document.root();
-        Model model = new DomTripModel(root, editor, releaseDescriptor);
+        PomModel model = new DomTripModel(root, editor, releaseDescriptor);
         assertNull(root.childTextTrimmed("version"));
 
         model.setVersion("VERSION");
@@ -84,7 +86,7 @@ class DomTripModelTest {
         Document document = Document.of(xml);
         Editor editor = new Editor(document);
         Element root = document.root();
-        Model model = new DomTripModel(root, editor, releaseDescriptor);
+        PomModel model = new DomTripModel(root, editor, releaseDescriptor);
 
         model.setVersion("NEW");
         assertEquals("NEW", root.childTextTrimmed("version"));
@@ -96,7 +98,7 @@ class DomTripModelTest {
         Document document = Document.of(xml);
         Editor editor = new Editor(document);
         Element root = document.root();
-        Model model = new DomTripModel(root, editor, releaseDescriptor);
+        PomModel model = new DomTripModel(root, editor, releaseDescriptor);
         assertNull(root.childElement("version").orElse(null));
 
         model.setVersion("PARENT_VERSION");
@@ -110,7 +112,7 @@ class DomTripModelTest {
         Document document = Document.of(xml);
         Editor editor = new Editor(document);
         Element root = document.root();
-        Model model = new DomTripModel(root, editor, releaseDescriptor);
+        PomModel model = new DomTripModel(root, editor, releaseDescriptor);
 
         model.setVersion("PARENT_VERSION");
         // should not add version element when version equals parent version
@@ -158,12 +160,17 @@ class DomTripModelTest {
 
     @Test
     void testGetReportingMissing() {
-        assertNull(createModel("<project></project>").getReporting());
+        assertFalse(createModel("<project></project>").hasReporting());
     }
 
     @Test
     void testGetReportingPresent() {
-        assertNotNull(createModel("<project><reporting/></project>").getReporting());
+        assertTrue(createModel("<project><reporting/></project>").hasReporting());
+        assertEquals(
+                1,
+                createModel("<project><reporting><plugins><plugin/></plugins></reporting></project>")
+                        .getReportPlugins()
+                        .size());
     }
 
     @Test
@@ -192,11 +199,17 @@ class DomTripModelTest {
 
     @Test
     void testGetDependencyManagementMissing() {
-        assertNull(createModel("<project></project>").getDependencyManagement());
+        assertFalse(createModel("<project></project>").hasDependencyManagement());
     }
 
     @Test
     void testGetDependencyManagementPresent() {
-        assertNotNull(createModel("<project><dependencyManagement/></project>").getDependencyManagement());
+        assertTrue(createModel("<project><dependencyManagement/></project>").hasDependencyManagement());
+        assertEquals(
+                1,
+                createModel(
+                                "<project><dependencyManagement><dependencies><dependency/></dependencies></dependencyManagement></project>")
+                        .getManagedDependencies()
+                        .size());
     }
 }

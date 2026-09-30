@@ -18,7 +18,7 @@
  */
 package org.apache.maven.shared.release.policy.version;
 
-import org.apache.maven.artifact.repository.metadata.Metadata;
+import org.apache.maven.api.metadata.Metadata;
 import org.apache.maven.scm.provider.ScmProvider;
 import org.apache.maven.scm.repository.ScmRepository;
 
@@ -62,7 +62,7 @@ public class VersionPolicyRequest {
     /**
      * <p>Getter for the field <code>metaData</code>.</p>
      *
-     * @return a {@link org.apache.maven.artifact.repository.metadata.Metadata} object
+     * @return a {@link org.apache.maven.api.metadata.Metadata} object
      */
     public Metadata getMetaData() {
         return metaData;
@@ -71,7 +71,7 @@ public class VersionPolicyRequest {
     /**
      * <p>Setter for the field <code>metaData</code>.</p>
      *
-     * @param metaData a {@link org.apache.maven.artifact.repository.metadata.Metadata} object
+     * @param metaData a {@link org.apache.maven.api.metadata.Metadata} object
      * @return a {@link org.apache.maven.shared.release.policy.version.VersionPolicyRequest} object
      */
     public VersionPolicyRequest setMetaData(Metadata metaData) {

@@ -24,11 +24,10 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.maven.settings.Proxy;
-import org.apache.maven.settings.Server;
-import org.apache.maven.settings.Settings;
-import org.apache.maven.settings.SettingsUtils;
-import org.apache.maven.settings.io.xpp3.SettingsXpp3Writer;
+import org.apache.maven.api.services.xml.SettingsXmlFactory;
+import org.apache.maven.api.settings.Proxy;
+import org.apache.maven.api.settings.Server;
+import org.apache.maven.api.settings.Settings;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.env.ReleaseEnvironment;
 import org.apache.maven.shared.release.util.MavenCrypto;
@@ -46,8 +45,11 @@ public abstract class AbstractMavenExecutor implements MavenExecutor {
 
     private final MavenCrypto mavenCrypto;
 
-    protected AbstractMavenExecutor(MavenCrypto mavenCrypto) {
+    private final SettingsXmlFactory settingsXmlFactory;
+
+    protected AbstractMavenExecutor(MavenCrypto mavenCrypto, SettingsXmlFactory settingsXmlFactory) {
         this.mavenCrypto = requireNonNull(mavenCrypto);
+        this.settingsXmlFactory = requireNonNull(settingsXmlFactory);
     }
 
     @Override
@@ -93,52 +95,43 @@ public abstract class AbstractMavenExecutor implements MavenExecutor {
     /**
      * <p>encryptSettings.</p>
      *
-     * @param settings a {@link org.apache.maven.settings.Settings} object
-     * @return a {@link org.apache.maven.settings.Settings} object
+     * @param settings a {@link org.apache.maven.api.settings.Settings} object
+     * @return a copy of the settings with encrypted passwords and passphrases
      */
     protected Settings encryptSettings(Settings settings) {
-        Settings encryptedSettings = SettingsUtils.copySettings(settings);
-
-        for (Server server : encryptedSettings.getServers()) {
-            String password = server.getPassword();
-            if (password != null && !mavenCrypto.isEncryptedString(password)) {
-                try {
-                    server.setPassword(mavenCrypto.encryptAndDecorate(password));
-                } catch (MavenCryptoException e) {
-                    // ignore
-                }
-            }
-
-            String passphrase = server.getPassphrase();
-            if (passphrase != null && !mavenCrypto.isEncryptedString(passphrase)) {
-                try {
-                    server.setPassphrase(mavenCrypto.encryptAndDecorate(passphrase));
-                } catch (MavenCryptoException e) {
-                    // ignore
-                }
-            }
+        List<Server> servers = new ArrayList<>();
+        for (Server server : settings.getServers()) {
+            servers.add(server.with()
+                    .password(encrypt(server.getPassword()))
+                    .passphrase(encrypt(server.getPassphrase()))
+                    .build());
         }
 
-        for (Proxy proxy : encryptedSettings.getProxies()) {
-            String password = proxy.getPassword();
-            if (password != null && !mavenCrypto.isEncryptedString(password)) {
-                try {
-                    proxy.setPassword(mavenCrypto.encryptAndDecorate(password));
-                } catch (MavenCryptoException e) {
-                    // ignore
-                }
-            }
+        List<Proxy> proxies = new ArrayList<>();
+        for (Proxy proxy : settings.getProxies()) {
+            proxies.add(proxy.withPassword(encrypt(proxy.getPassword())));
         }
 
-        return encryptedSettings;
+        return settings.with().servers(servers).proxies(proxies).build();
+    }
+
+    private String encrypt(String value) {
+        if (value != null && !mavenCrypto.isEncryptedString(value)) {
+            try {
+                return mavenCrypto.encryptAndDecorate(value);
+            } catch (MavenCryptoException e) {
+                // ignore
+            }
+        }
+        return value;
     }
 
     /**
-     * <p>getSettingsWriter.</p>
+     * <p>getSettingsXmlFactory.</p>
      *
-     * @return a {@link org.apache.maven.settings.io.xpp3.SettingsXpp3Writer} object
+     * @return the factory that writes the settings handed to the forked build
      */
-    protected SettingsXpp3Writer getSettingsWriter() {
-        return new SettingsXpp3Writer();
+    protected SettingsXmlFactory getSettingsXmlFactory() {
+        return settingsXmlFactory;
     }
 }

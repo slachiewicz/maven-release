@@ -18,12 +18,13 @@
  */
 package org.apache.maven.shared.release.scm;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.apache.maven.api.settings.Server;
+import org.apache.maven.api.settings.Settings;
 import org.apache.maven.scm.manager.NoSuchScmProviderException;
 import org.apache.maven.scm.manager.ScmManager;
 import org.apache.maven.scm.provider.ScmProvider;
@@ -32,11 +33,10 @@ import org.apache.maven.scm.provider.ScmProviderRepositoryWithHost;
 import org.apache.maven.scm.provider.svn.repository.SvnScmProviderRepository;
 import org.apache.maven.scm.repository.ScmRepository;
 import org.apache.maven.scm.repository.ScmRepositoryException;
-import org.apache.maven.settings.Server;
-import org.apache.maven.settings.Settings;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
 import org.apache.maven.shared.release.util.MavenCrypto;
 import org.apache.maven.shared.release.util.MavenCrypto.MavenCryptoException;
+import org.apache.maven.shared.release.util.SettingsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,7 +96,7 @@ public class DefaultScmRepositoryConfigurator implements ScmRepositoryConfigurat
             Server server = null;
 
             if (releaseDescriptor.getScmId() != null) {
-                server = settings.getServer(releaseDescriptor.getScmId());
+                server = SettingsHelper.getServer(settings, releaseDescriptor.getScmId());
                 if (server == null) {
                     logger.warn("No server with id '{}' found in Maven settings", releaseDescriptor.getScmId());
                 }
@@ -115,7 +115,7 @@ public class DefaultScmRepositoryConfigurator implements ScmRepositoryConfigurat
 
                 // TODO: this is a bit dodgy - id is not host, but since we don't have a <host> field we make an
                 // assumption
-                server = settings.getServer(host);
+                server = SettingsHelper.getServer(settings, host);
             }
 
             if (server != null) {

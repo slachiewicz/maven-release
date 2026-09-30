@@ -18,9 +18,8 @@
  */
 package org.apache.maven.shared.release.policies;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.shared.release.policy.PolicyException;
 import org.apache.maven.shared.release.policy.naming.NamingPolicy;
 import org.apache.maven.shared.release.policy.naming.NamingPolicyRequest;
@@ -33,7 +32,7 @@ import org.apache.maven.shared.release.policy.naming.NamingPolicyResult;
  * @since 3.0.0-M5
  */
 @Singleton
-@Named
+@Named("default")
 public class DefaultNamingPolicy implements NamingPolicy {
     @Override
     public NamingPolicyResult getName(NamingPolicyRequest request) throws PolicyException {

@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.maven.api.services.xml.SettingsXmlFactory;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.env.ReleaseEnvironment;
@@ -41,7 +42,8 @@ class AbstractMavenExecutorTest {
 
     @Test
     void testGoalSeparation() throws MavenExecutorException {
-        AbstractMavenExecutor executor = spy(new AbstractMavenExecutorSpy(mock(MavenCrypto.class)));
+        AbstractMavenExecutor executor =
+                spy(new AbstractMavenExecutorSpy(mock(MavenCrypto.class), mock(SettingsXmlFactory.class)));
 
         executor.executeGoals(null, (String) null, new DefaultReleaseEnvironment(), true, null, null, null);
         verify(executor)
@@ -129,8 +131,8 @@ class AbstractMavenExecutorTest {
     }
 
     protected class AbstractMavenExecutorSpy extends AbstractMavenExecutor {
-        public AbstractMavenExecutorSpy(MavenCrypto mavenCrypto) {
-            super(mavenCrypto);
+        public AbstractMavenExecutorSpy(MavenCrypto mavenCrypto, SettingsXmlFactory settingsXmlFactory) {
+            super(mavenCrypto, settingsXmlFactory);
         }
 
         @Override

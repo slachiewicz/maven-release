@@ -18,7 +18,6 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import java.io.File;
@@ -31,43 +30,17 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.artifact.factory.ArtifactFactory;
-import org.apache.maven.artifact.repository.ArtifactRepository;
-import org.apache.maven.artifact.repository.ArtifactRepositoryPolicy;
-import org.apache.maven.artifact.repository.MavenArtifactRepository;
-import org.apache.maven.artifact.repository.layout.ArtifactRepositoryLayout;
-import org.apache.maven.artifact.repository.layout.DefaultRepositoryLayout;
-import org.apache.maven.lifecycle.LifecycleExecutionException;
-import org.apache.maven.model.Profile;
-import org.apache.maven.model.Repository;
-import org.apache.maven.project.DefaultProjectBuildingRequest;
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.project.ProjectBuilder;
-import org.apache.maven.project.ProjectBuildingRequest;
-import org.apache.maven.project.ProjectBuildingRequest.RepositoryMerging;
-import org.apache.maven.project.ProjectBuildingResult;
-import org.apache.maven.project.ProjectSorter;
-import org.apache.maven.project.artifact.InvalidDependencyVersionException;
-import org.apache.maven.scm.manager.ScmManager;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.di.Injector;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
-import org.apache.maven.shared.release.scm.ScmTranslator;
-import org.apache.maven.shared.release.scm.SubversionScmTranslator;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
 import org.apache.maven.shared.release.stubs.ScmManagerStub;
-import org.codehaus.plexus.PlexusContainer;
-import org.codehaus.plexus.testing.PlexusTestConfiguration;
-import org.eclipse.aether.DefaultRepositorySystemSession;
-import org.eclipse.aether.internal.impl.SimpleLocalRepositoryManagerFactory;
-import org.eclipse.aether.repository.LocalRepository;
-import org.eclipse.aether.repository.WorkspaceReader;
-import org.eclipse.aether.repository.WorkspaceRepository;
+import org.apache.maven.shared.release.versions.ArtifactKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.xmlunit.builder.DiffBuilder;
 import org.xmlunit.diff.Comparison;
@@ -79,59 +52,46 @@ import org.xmlunit.diff.DifferenceEvaluator;
 import org.xmlunit.diff.ElementSelectors;
 import org.xmlunit.util.DocumentBuilderFactoryConfigurer;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getBasedir;
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getBasedir;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
- * Base class for some release tests.
+ * Base class for some release tests. Each test gets its own Maven 4 API session with a fresh local repository and a
+ * dependency injection container whose components are injected into the fields of the test.
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-public abstract class AbstractReleaseTestCase implements PlexusTestConfiguration {
+public abstract class AbstractReleaseTestCase extends AbstractInjectedTestCase {
     private static final DocumentBuilderFactory DOCUMENT_BUILDER_FACTORY = DocumentBuilderFactoryConfigurer.builder()
             // .withDTDParsingDisabled()
             .build()
             .configure(DocumentBuilderFactory.newInstance());
 
     @Inject
-    protected ProjectBuilder projectBuilder;
-
-    protected ArtifactRepository localRepository;
-
-    @Inject
-    private ArtifactFactory artifactFactory;
-
-    @Inject
-    private ArtifactRepositoryLayout layout;
-
     protected ScmManagerStub scmManager;
 
     @Override
-    public void customizeContainer(PlexusContainer container) {
-        scmManager = new ScmManagerStub();
-        container.addComponent(scmManager, ScmManager.class.getName());
-        container.addComponent(new SubversionScmTranslator(), ScmTranslator.class, "stub-provider");
+    protected void customizeInjector(Injector injector) {
+        injector.bindImplicit(ScmManagerStub.class);
     }
 
     @BeforeEach
     void setupAbstractReleaseTestCase() throws Exception {
-        String localRepoPath =
-                getTestFile("target/local-repository").getAbsolutePath().replace('\\', '/');
-        localRepository = new MavenArtifactRepository("local", "file://" + localRepoPath, layout, null, null);
+        testSession.seed(getTestFile("src/test/remote-repository").toPath());
     }
 
     protected Path getWorkingDirectory(String workingDir) {
         return Paths.get(getBasedir(), "target/test-classes").resolve(Paths.get("projects", workingDir));
     }
 
-    protected List<MavenProject> createReactorProjects(String path, String subpath) throws Exception {
+    protected List<Project> createReactorProjects(String path, String subpath) throws Exception {
         return createReactorProjects(path, path, subpath);
     }
 
-    protected ReleaseDescriptorBuilder createReleaseDescriptorBuilder(List<MavenProject> reactorProjects) {
+    protected ReleaseDescriptorBuilder createReleaseDescriptorBuilder(List<Project> reactorProjects) {
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
-        for (MavenProject project : reactorProjects) {
+        for (Project project : reactorProjects) {
             builder.putOriginalVersion(project.getGroupId() + ':' + project.getArtifactId(), project.getVersion());
         }
         return builder;
@@ -145,7 +105,7 @@ public abstract class AbstractReleaseTestCase implements PlexusTestConfiguration
      * @return all Maven projects
      * @throws Exception if any occurs
      */
-    protected List<MavenProject> createReactorProjects(String sourcePath, String targetPath, String executionRoot)
+    protected List<Project> createReactorProjects(String sourcePath, String targetPath, String executionRoot)
             throws Exception {
         final Path testCaseRootFrom =
                 Paths.get(getBasedir(), "src/test/resources").resolve(Paths.get("projects", sourcePath));
@@ -176,112 +136,43 @@ public abstract class AbstractReleaseTestCase implements PlexusTestConfiguration
             projectFile = testCaseRootTo.resolve(Paths.get(executionRoot, "pom.xml"));
         }
 
-        List<ArtifactRepository> repos = Collections.singletonList(new MavenArtifactRepository(
-                "central",
-                getRemoteRepositoryURL(),
-                new DefaultRepositoryLayout(),
-                new ArtifactRepositoryPolicy(),
-                new ArtifactRepositoryPolicy()));
-
-        Repository repository = new Repository();
-        repository.setId("central");
-        repository.setUrl(getRemoteRepositoryURL());
-
-        Profile profile = new Profile();
-        profile.setId("profile");
-        profile.addRepository(repository);
-
-        ProjectBuildingRequest buildingRequest = new DefaultProjectBuildingRequest();
-        buildingRequest.setLocalRepository(localRepository);
-        buildingRequest.setRemoteRepositories(repos);
-        buildingRequest.setPluginArtifactRepositories(repos);
-        buildingRequest.setRepositoryMerging(RepositoryMerging.REQUEST_DOMINANT);
-        DefaultRepositorySystemSession repositorySession = new DefaultRepositorySystemSession();
-        repositorySession.setLocalRepositoryManager(new SimpleLocalRepositoryManagerFactory()
-                .newInstance(repositorySession, new LocalRepository(localRepository.getBasedir())));
-        buildingRequest.setRepositorySession(repositorySession);
-        buildingRequest.addProfile(profile);
-        buildingRequest.setActiveProfileIds(Collections.singletonList(profile.getId()));
-        buildingRequest.setResolveDependencies(true);
-
-        List<ProjectBuildingResult> buildingResults =
-                projectBuilder.build(Collections.singletonList(projectFile.toFile()), true, buildingRequest);
-
-        List<MavenProject> reactorProjects = new ArrayList<>();
-        for (ProjectBuildingResult buildingResult : buildingResults) {
-            reactorProjects.add(buildingResult.getProject());
-        }
-
-        WorkspaceReader simpleReactorReader = new SimpleReactorWorkspaceReader(reactorProjects);
-        repositorySession.setWorkspaceReader(simpleReactorReader);
-
-        ProjectSorter sorter = new ProjectSorter(reactorProjects);
-        reactorProjects = sorter.getSortedProjects();
-
-        List<MavenProject> resolvedProjects = new ArrayList<>(reactorProjects.size());
-        for (MavenProject project : reactorProjects) {
-            MavenProject resolvedProject =
-                    projectBuilder.build(project.getFile(), buildingRequest).getProject();
-
-            // from LifecycleDependencyResolver
-            if (resolvedProject.getDependencyArtifacts() == null) {
-                try {
-                    resolvedProject.setDependencyArtifacts(
-                            resolvedProject.createArtifacts(artifactFactory, null, null));
-                } catch (InvalidDependencyVersionException e) {
-                    throw new LifecycleExecutionException(e);
-                }
-            }
-
-            // TODO .... understand why this is working ... :-)
-            // why projectBuilder doesn't resolve and set in proper way DependencyArtifacts and Artifacts
-            if (resolvedProject.getDependencyArtifacts().size()
-                            >= resolvedProject.getArtifacts().size()
-                    && resolvedProject.getDependencyArtifacts().stream().noneMatch(a -> a.getVersion() == null)) {
-                resolvedProject.setArtifacts(resolvedProject.getDependencyArtifacts());
-            }
-
-            resolvedProjects.add(resolvedProject);
-        }
-        return resolvedProjects;
+        return testSession.buildReactor(projectFile);
     }
 
-    protected static Map<String, MavenProject> getProjectsAsMap(List<MavenProject> reactorProjects) {
-        Map<String, MavenProject> map = new HashMap<>();
-        for (MavenProject project : reactorProjects) {
-            map.put(ArtifactUtils.versionlessKey(project.getGroupId(), project.getArtifactId()), project);
+    protected static Map<String, Project> getProjectsAsMap(List<Project> reactorProjects) {
+        Map<String, Project> map = new HashMap<>();
+        for (Project project : reactorProjects) {
+            map.put(ArtifactKeys.versionlessKey(project.getGroupId(), project.getArtifactId()), project);
         }
         return map;
     }
 
-    protected void comparePomFiles(List<MavenProject> reactorProjects) throws IOException {
+    protected void comparePomFiles(List<Project> reactorProjects) throws IOException {
         comparePomFiles(reactorProjects, true);
     }
 
-    protected void comparePomFiles(List<MavenProject> reactorProjects, boolean normalizeLineEndings)
-            throws IOException {
+    protected void comparePomFiles(List<Project> reactorProjects, boolean normalizeLineEndings) throws IOException {
         comparePomFiles(reactorProjects, "", normalizeLineEndings);
     }
 
-    protected void comparePomFiles(List<MavenProject> reactorProjects, String expectedFileSuffix) throws IOException {
+    protected void comparePomFiles(List<Project> reactorProjects, String expectedFileSuffix) throws IOException {
         comparePomFiles(reactorProjects, expectedFileSuffix, true);
     }
 
     protected void comparePomFiles(
-            List<MavenProject> reactorProjects, String expectedFileSuffix, boolean normalizeLineEndings)
-            throws IOException {
-        for (MavenProject project : reactorProjects) {
+            List<Project> reactorProjects, String expectedFileSuffix, boolean normalizeLineEndings) throws IOException {
+        for (Project project : reactorProjects) {
             comparePomFiles(project, expectedFileSuffix, normalizeLineEndings);
         }
     }
 
-    protected void comparePomFiles(MavenProject project, String expectedFileSuffix) throws IOException {
+    protected void comparePomFiles(Project project, String expectedFileSuffix) throws IOException {
         comparePomFiles(project, expectedFileSuffix, true);
     }
 
-    protected void comparePomFiles(MavenProject project, String expectedFileSuffix, boolean normalizeLineEndings)
+    protected void comparePomFiles(Project project, String expectedFileSuffix, boolean normalizeLineEndings)
             throws IOException {
-        File actualFile = project.getFile();
+        File actualFile = project.getPomPath().toFile();
         File expectedFile = new File(actualFile.getParentFile(), "expected-pom" + expectedFileSuffix + ".xml");
 
         comparePomFiles(expectedFile, actualFile, normalizeLineEndings, false);
@@ -353,48 +244,5 @@ public abstract class AbstractReleaseTestCase implements PlexusTestConfiguration
 
     public static String getPath(File file) throws IOException {
         return file.toPath().toRealPath(LinkOption.NOFOLLOW_LINKS).toString();
-    }
-
-    /**
-     * WorkspaceReader to find versions and artifacts from reactor
-     */
-    private static final class SimpleReactorWorkspaceReader implements WorkspaceReader {
-        private final List<MavenProject> reactorProjects;
-
-        private SimpleReactorWorkspaceReader(List<MavenProject> reactorProjects) {
-            this.reactorProjects = reactorProjects;
-        }
-
-        @Override
-        public WorkspaceRepository getRepository() {
-            return null;
-        }
-
-        @Override
-        public List<String> findVersions(org.eclipse.aether.artifact.Artifact artifact) {
-            for (MavenProject mavenProject : reactorProjects) {
-                if (Objects.equals(
-                        artifact.toString(), mavenProject.getArtifact().toString())) {
-                    return Collections.singletonList(mavenProject.getArtifact().getVersion());
-                }
-            }
-            return Collections.emptyList();
-        }
-
-        @Override
-        public File findArtifact(org.eclipse.aether.artifact.Artifact artifact) {
-            for (MavenProject mavenProject : reactorProjects) {
-                String pom = mavenProject.getGroupId() + ':' + mavenProject.getArtifactId() + ":pom:"
-                        + mavenProject.getVersion();
-                if (Objects.equals(artifact.toString(), pom)) {
-                    return mavenProject.getFile();
-                } else if (Objects.equals(
-                        artifact.toString(), mavenProject.getArtifact().toString())) {
-                    // just an existing, content doesn't matter
-                    return mavenProject.getFile();
-                }
-            }
-            return null;
-        }
     }
 }

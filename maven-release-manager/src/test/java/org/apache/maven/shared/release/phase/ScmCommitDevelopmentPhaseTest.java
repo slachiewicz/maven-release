@@ -18,13 +18,12 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
 import org.apache.maven.scm.ScmFile;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmFileStatus;
@@ -34,9 +33,7 @@ import org.apache.maven.scm.provider.ScmProvider;
 import org.apache.maven.scm.repository.ScmRepository;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.util.ReleaseUtil;
-import org.codehaus.plexus.testing.PlexusTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -55,16 +52,15 @@ import static org.mockito.Mockito.when;
  *
  * @author <a href="mailto:me@lcorneliussen.de">Lars Corneliussen</a>
  */
-@PlexusTest
 class ScmCommitDevelopmentPhaseTest extends AbstractReleaseTestCase {
     private static final String COMMIT_MESSAGE = "[maven-release-manager] prepare for next development iteration";
 
     private static final String ROLLBACK_PREFIX =
             "[maven-release-manager] rollback changes from release preparation of ";
 
-    private List<MavenProject> reactorProjects;
+    private List<Project> reactorProjects;
 
-    private MavenProject rootProject;
+    private Project rootProject;
 
     private ReleaseDescriptorBuilder builder;
 
@@ -89,7 +85,7 @@ class ScmCommitDevelopmentPhaseTest extends AbstractReleaseTestCase {
     @Test
     void testNoCommitOrRollbackRequired() throws Exception {
         ReleaseDescriptorBuilder builder = createReleaseDescriptorBuilder(rootProject);
-        List<MavenProject> reactorProjects = createReactorProjects();
+        List<Project> reactorProjects = createReactorProjects();
 
         builder.setRemoteTagging(false);
         builder.setPinExternals(false);
@@ -98,7 +94,7 @@ class ScmCommitDevelopmentPhaseTest extends AbstractReleaseTestCase {
 
         prepareNoCheckin();
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         verifyNoCheckin();
     }
@@ -109,7 +105,7 @@ class ScmCommitDevelopmentPhaseTest extends AbstractReleaseTestCase {
 
         prepareCheckin(COMMIT_MESSAGE);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         verifyCheckin(COMMIT_MESSAGE);
     }
@@ -122,7 +118,7 @@ class ScmCommitDevelopmentPhaseTest extends AbstractReleaseTestCase {
 
         prepareCheckin("[release] Development of groupId:artifactId");
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         verifyCheckin("[release] Development of groupId:artifactId");
     }
@@ -135,13 +131,14 @@ class ScmCommitDevelopmentPhaseTest extends AbstractReleaseTestCase {
 
         prepareCheckin(message);
 
-        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), new DefaultReleaseEnvironment(), reactorProjects);
+        phase.execute(ReleaseUtils.buildReleaseDescriptor(builder), newReleaseEnvironment(), reactorProjects);
 
         verifyCheckin(message);
     }
 
     private void prepareCheckin(String message) throws Exception {
-        ScmFileSet fileSet = new ScmFileSet(rootProject.getFile().getParentFile(), rootProject.getFile());
+        ScmFileSet fileSet = new ScmFileSet(
+                ReleaseUtil.getPomFile(rootProject).getParentFile(), ReleaseUtil.getPomFile(rootProject));
         scmProviderMock = mock(ScmProvider.class);
         when(scmProviderMock.checkIn(
                         isA(ScmRepository.class),
@@ -151,12 +148,13 @@ class ScmCommitDevelopmentPhaseTest extends AbstractReleaseTestCase {
                 .thenReturn(new CheckInScmResult(
                         "...",
                         Collections.singletonList(
-                                new ScmFile(rootProject.getFile().getPath(), ScmFileStatus.CHECKED_IN))));
+                                new ScmFile(ReleaseUtil.getPomFile(rootProject).getPath(), ScmFileStatus.CHECKED_IN))));
         scmManager.setScmProvider(scmProviderMock);
     }
 
     private void verifyCheckin(String message) throws Exception {
-        ScmFileSet fileSet = new ScmFileSet(rootProject.getFile().getParentFile(), rootProject.getFile());
+        ScmFileSet fileSet = new ScmFileSet(
+                ReleaseUtil.getPomFile(rootProject).getParentFile(), ReleaseUtil.getPomFile(rootProject));
         verify(scmProviderMock)
                 .checkIn(
                         isA(ScmRepository.class), argThat(new IsScmFileSetEquals(fileSet)),
@@ -173,16 +171,17 @@ class ScmCommitDevelopmentPhaseTest extends AbstractReleaseTestCase {
         verifyNoMoreInteractions(scmProviderMock);
     }
 
-    private List<MavenProject> createReactorProjects() throws Exception {
+    private List<Project> createReactorProjects() throws Exception {
         String dir = "scm-commit/single-pom";
         return createReactorProjects(dir, dir, null);
     }
 
-    private static ReleaseDescriptorBuilder createReleaseDescriptorBuilder(MavenProject rootProject) {
+    private static ReleaseDescriptorBuilder createReleaseDescriptorBuilder(Project rootProject) {
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setScmSourceUrl("scm-url");
         builder.setScmReleaseLabel("release-label");
-        builder.setWorkingDirectory(rootProject.getFile().getParentFile().getAbsolutePath());
+        builder.setWorkingDirectory(
+                ReleaseUtil.getPomFile(rootProject).getParentFile().getAbsolutePath());
         return builder;
     }
 }

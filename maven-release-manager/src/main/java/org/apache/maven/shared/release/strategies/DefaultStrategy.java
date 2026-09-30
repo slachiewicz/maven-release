@@ -18,13 +18,12 @@
  */
 package org.apache.maven.shared.release.strategies;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.shared.release.strategy.Strategy;
 
 /**
@@ -34,7 +33,7 @@ import org.apache.maven.shared.release.strategy.Strategy;
  * @since 3.0.0-M5
  */
 @Singleton
-@Named
+@Named("default")
 public class DefaultStrategy implements Strategy {
     /**
      * The phases of release to run to prepare.

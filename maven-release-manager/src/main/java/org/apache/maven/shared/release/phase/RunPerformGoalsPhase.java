@@ -18,16 +18,16 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.apache.maven.api.services.xml.ModelXmlFactory;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
@@ -52,9 +52,7 @@ public class RunPerformGoalsPhase extends AbstractRunGoalsPhase {
 
     @Override
     public ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException {
         return runLogic(releaseDescriptor, releaseEnvironment, false);
     }
@@ -103,7 +101,8 @@ public class RunPerformGoalsPhase extends AbstractRunGoalsPhase {
         }
 
         File pomFile = new File(workDir, pomFileName);
-        PomFinder pomFinder = new PomFinder(getLogger());
+        PomFinder pomFinder =
+                new PomFinder(getLogger(), releaseEnvironment.getSession().getService(ModelXmlFactory.class));
         boolean foundPom = false;
 
         if (StringUtils.isEmpty(releaseDescriptor.getScmRelativePathProjectDirectory())) {
@@ -129,9 +128,7 @@ public class RunPerformGoalsPhase extends AbstractRunGoalsPhase {
 
     @Override
     public ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException {
         return runLogic(releaseDescriptor, releaseEnvironment, true);
     }

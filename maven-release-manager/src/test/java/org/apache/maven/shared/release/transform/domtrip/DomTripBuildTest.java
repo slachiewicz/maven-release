@@ -23,9 +23,9 @@ import eu.maveniverse.domtrip.Editor;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DomTripBuildTest {
 
@@ -57,13 +57,45 @@ class DomTripBuildTest {
     }
 
     @Test
-    void testGetPluginManagementMissing() {
-        assertNull(createBuild("<build></build>").getPluginManagement());
+    void testPluginManagementMissing() {
+        assertFalse(createBuild("<build></build>").hasPluginManagement());
+        assertEquals(0, createBuild("<build></build>").getManagedPlugins().size());
     }
 
     @Test
-    void testGetPluginManagementPresent() {
-        assertNotNull(createBuild("<build><pluginManagement/></build>").getPluginManagement());
+    void testPluginManagementPresent() {
+        assertTrue(createBuild("<build><pluginManagement/></build>").hasPluginManagement());
+    }
+
+    @Test
+    void testGetManagedPluginsOne() {
+        assertEquals(
+                1,
+                createBuild("<build><pluginManagement><plugins><plugin/></plugins></pluginManagement></build>")
+                        .getManagedPlugins()
+                        .size());
+    }
+
+    @Test
+    void testPluginDependencies() {
+        assertEquals(
+                1,
+                createBuild("<build><plugins><plugin><dependencies><dependency/></dependencies></plugin></plugins>"
+                                + "</build>")
+                        .getPlugins()
+                        .get(0)
+                        .getDependencies()
+                        .size());
+    }
+
+    @Test
+    void testPluginName() {
+        assertEquals(
+                "plugin",
+                createBuild("<build><plugins><plugin/></plugins></build>")
+                        .getPlugins()
+                        .get(0)
+                        .getName());
     }
 
     @Test
@@ -84,264 +116,5 @@ class DomTripBuildTest {
                 createBuild("<build><plugins><plugin/></plugins></build>")
                         .getPlugins()
                         .size());
-    }
-
-    @Test
-    void testFlushPluginMap() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").flushPluginMap());
-    }
-
-    @Test
-    void testAddExtension() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").addExtension(null));
-    }
-
-    @Test
-    void testGetOutputDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getOutputDirectory());
-    }
-
-    @Test
-    void testGetScriptSourceDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getScriptSourceDirectory());
-    }
-
-    @Test
-    void testGetSourceDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getSourceDirectory());
-    }
-
-    @Test
-    void testGetTestOutputDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getTestOutputDirectory());
-    }
-
-    @Test
-    void testGetTestSourceDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getTestSourceDirectory());
-    }
-
-    @Test
-    void testRemoveExtension() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").removeExtension(null));
-    }
-
-    @Test
-    void testSetExtensions() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setExtensions(null));
-    }
-
-    @Test
-    void testSetOutputDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setOutputDirectory(null));
-    }
-
-    @Test
-    void testSetScriptSourceDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setScriptSourceDirectory(null));
-    }
-
-    @Test
-    void testSetSourceDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setSourceDirectory(null));
-    }
-
-    @Test
-    void testSetTestOutputDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setTestOutputDirectory(null));
-    }
-
-    @Test
-    void testSetTestSourceDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setTestSourceDirectory(null));
-    }
-
-    @Test
-    void testAddFilter() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").addFilter(null));
-    }
-
-    @Test
-    void testAddResource() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").addResource(null));
-    }
-
-    @Test
-    void testAddTestResource() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").addTestResource(null));
-    }
-
-    @Test
-    void testGetDefaultGoal() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getDefaultGoal());
-    }
-
-    @Test
-    void testGetDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getDirectory());
-    }
-
-    @Test
-    void testGetFilters() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getFilters());
-    }
-
-    @Test
-    void testGetFinalName() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getFinalName());
-    }
-
-    @Test
-    void testGetResources() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getResources());
-    }
-
-    @Test
-    void testGetTestResources() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getTestResources());
-    }
-
-    @Test
-    void testRemoveFilter() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").removeFilter(null));
-    }
-
-    @Test
-    void testRemoveResource() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").removeResource(null));
-    }
-
-    @Test
-    void testRemoveTestResource() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").removeTestResource(null));
-    }
-
-    @Test
-    void testSetDefaultGoal() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setDefaultGoal(null));
-    }
-
-    @Test
-    void testSetDirectory() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setDirectory(null));
-    }
-
-    @Test
-    void testSetFilters() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setFilters(null));
-    }
-
-    @Test
-    void testSetFinalName() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setFinalName(null));
-    }
-
-    @Test
-    void testSetResources() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setResources(null));
-    }
-
-    @Test
-    void testSetTestResources() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setTestResources(null));
-    }
-
-    @Test
-    void testSetPluginManagement() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setPluginManagement(null));
-    }
-
-    @Test
-    void testAddPlugin() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").addPlugin(null));
-    }
-
-    @Test
-    void testRemovePlugin() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").removePlugin(null));
-    }
-
-    @Test
-    void testSetPlugins() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").setPlugins(null));
-    }
-
-    @Test
-    void testGetPluginsAsMap() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> createBuild("<build/>").getPluginsAsMap());
     }
 }

@@ -18,15 +18,14 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.command.remove.RemoveScmResult;
@@ -57,18 +56,14 @@ public class RemoveReleasePomsPhase extends AbstractReleasePomsPhase {
 
     @Override
     public ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseFailureException, ReleaseExecutionException {
         return execute(releaseDescriptor, releaseEnvironment, reactorProjects, false);
     }
 
     @Override
     public ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseFailureException, ReleaseExecutionException {
         return execute(releaseDescriptor, releaseEnvironment, reactorProjects, true);
     }
@@ -76,7 +71,7 @@ public class RemoveReleasePomsPhase extends AbstractReleasePomsPhase {
     private ReleaseResult execute(
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects,
+            List<Project> reactorProjects,
             boolean simulate)
             throws ReleaseFailureException, ReleaseExecutionException {
         ReleaseResult result = new ReleaseResult();
@@ -97,12 +92,12 @@ public class RemoveReleasePomsPhase extends AbstractReleasePomsPhase {
             ReleaseEnvironment releaseEnvironment,
             boolean simulate,
             ReleaseResult result,
-            List<MavenProject> projects)
+            List<Project> projects)
             throws ReleaseFailureException, ReleaseExecutionException {
         List<File> releasePoms = new ArrayList<>();
 
-        for (MavenProject project : projects) {
-            logInfo(result, "Removing release POM for '" + project.getName() + "'...");
+        for (Project project : projects) {
+            logInfo(result, "Removing release POM for '" + ReleaseUtil.getProjectName(project) + "'...");
 
             releasePoms.add(ReleaseUtil.getReleasePom(project));
         }

@@ -18,19 +18,18 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.IOException;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.model.Scm;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.apache.maven.api.model.Model;
+import org.apache.maven.api.model.Scm;
 import org.apache.maven.scm.repository.ScmRepository;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.ReleaseResult;
@@ -38,6 +37,9 @@ import org.apache.maven.shared.release.config.ReleaseDescriptor;
 import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
 import org.apache.maven.shared.release.scm.ScmTranslator;
 import org.apache.maven.shared.release.transform.ModelETLFactory;
+import org.apache.maven.shared.release.transform.PomModel;
+import org.apache.maven.shared.release.transform.PomScm;
+import org.apache.maven.shared.release.transform.SimplePomScm;
 import org.apache.maven.shared.release.util.ReleaseUtil;
 
 /**
@@ -63,20 +65,21 @@ public class RewritePomsForBranchPhase extends AbstractRewritePomsPhase {
 
     @Override
     protected void transformScm(
-            MavenProject project,
-            Model modelTarget,
+            Project project,
+            PomModel modelTarget,
+            Model originalModel,
             ReleaseDescriptor releaseDescriptor,
             String projectId,
             ScmRepository scmRepository,
             ReleaseResult result)
             throws ReleaseExecutionException {
         // If SCM is null in original model, it is inherited, no mods needed
-        if (project.getScm() != null) {
-            Scm scmRoot = modelTarget.getScm();
+        if (project.getModel().getScm() != null) {
+            PomScm scmRoot = modelTarget.getScm();
 
             if (scmRoot != null) {
                 try {
-                    translateScm(project, releaseDescriptor, scmRoot, scmRepository, result);
+                    translateScm(project, originalModel, releaseDescriptor, scmRoot, scmRepository, result);
                 } catch (IOException e) {
                     throw new ReleaseExecutionException(e.getMessage(), e);
                 }
@@ -86,13 +89,11 @@ public class RewritePomsForBranchPhase extends AbstractRewritePomsPhase {
                 // so the values otherwise won't be correct on the tag),
                 if (ReleaseUtil.hasNoOriginalScmInfoInParents(project, releaseDescriptor)) {
                     // we need to add it, since it has changed from the inherited value
-                    scmRoot = new Scm();
-                    // reset default value (HEAD)
-                    scmRoot.setTag(null);
+                    SimplePomScm scmTarget = new SimplePomScm();
 
                     try {
-                        if (translateScm(project, releaseDescriptor, scmRoot, scmRepository, result)) {
-                            modelTarget.setScm(scmRoot);
+                        if (translateScm(project, originalModel, releaseDescriptor, scmTarget, scmRepository, result)) {
+                            modelTarget.setScm(scmTarget);
                         }
                     } catch (IOException e) {
                         throw new ReleaseExecutionException(e.getMessage(), e);
@@ -103,18 +104,19 @@ public class RewritePomsForBranchPhase extends AbstractRewritePomsPhase {
     }
 
     private boolean translateScm(
-            MavenProject project,
+            Project project,
+            Model originalModel,
             ReleaseDescriptor releaseDescriptor,
-            Scm scmTarget,
+            PomScm scmTarget,
             ScmRepository scmRepository,
             ReleaseResult relResult)
             throws IOException {
         ScmTranslator translator = getScmTranslators().get(scmRepository.getProvider());
         boolean result = false;
         if (translator != null) {
-            Scm scm = project.getOriginalModel().getScm();
+            Scm scm = originalModel.getScm();
             if (scm == null) {
-                scm = project.getScm();
+                scm = project.getModel().getScm();
             }
 
             String branchName = releaseDescriptor.getScmReleaseLabel();
@@ -125,7 +127,7 @@ public class RewritePomsForBranchPhase extends AbstractRewritePomsPhase {
                 branchBase = "scm:svn:" + branchBase;
             }
 
-            Path projectBasedir = project.getBasedir().toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
+            Path projectBasedir = project.getBasedir().toRealPath(LinkOption.NOFOLLOW_LINKS);
             Path workingDirectory = Paths.get(releaseDescriptor.getWorkingDirectory());
 
             int count = ReleaseUtil.getBaseWorkingDirectoryParentCount(workingDirectory, projectBasedir);

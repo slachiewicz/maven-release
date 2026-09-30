@@ -20,22 +20,19 @@ package org.apache.maven.shared.release.transform.domtrip;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import eu.maveniverse.domtrip.Editor;
 import eu.maveniverse.domtrip.Element;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Plugin;
-import org.apache.maven.model.PluginExecution;
 import org.apache.maven.shared.release.transform.MavenCoordinate;
+import org.apache.maven.shared.release.transform.PomPlugin;
 
 /**
  * DomTrip implementation of poms PLUGIN element.
  *
  * @since 3.4
  */
-public class DomTripPlugin extends Plugin implements MavenCoordinate {
+public class DomTripPlugin implements PomPlugin {
     private final Element plugin;
     private final Editor editor;
     private final MavenCoordinate coordinate;
@@ -47,13 +44,8 @@ public class DomTripPlugin extends Plugin implements MavenCoordinate {
     }
 
     @Override
-    public void addDependency(Dependency dependency) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void addExecution(PluginExecution pluginExecution) {
-        throw new UnsupportedOperationException();
+    public String getGroupId() {
+        return coordinate.getGroupId();
     }
 
     @Override
@@ -62,77 +54,8 @@ public class DomTripPlugin extends Plugin implements MavenCoordinate {
     }
 
     @Override
-    public List<Dependency> getDependencies() {
-        return plugin.childElement("dependencies")
-                .map(deps -> deps.childElements("dependency")
-                        .map(dep -> (Dependency) new DomTripDependency(dep, editor))
-                        .collect(Collectors.toList()))
-                .orElse(Collections.emptyList());
-    }
-
-    @Override
-    public List<PluginExecution> getExecutions() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Object getGoals() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String getGroupId() {
-        return coordinate.getGroupId();
-    }
-
-    @Override
     public String getVersion() {
         return coordinate.getVersion();
-    }
-
-    @Override
-    public boolean isExtensions() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void removeDependency(Dependency dependency) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void removeExecution(PluginExecution pluginExecution) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setArtifactId(String artifactId) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setDependencies(List<Dependency> dependencies) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setExecutions(List<PluginExecution> executions) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setExtensions(boolean extensions) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setGoals(Object goals) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setGroupId(String groupId) {
-        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -141,13 +64,12 @@ public class DomTripPlugin extends Plugin implements MavenCoordinate {
     }
 
     @Override
-    public void flushExecutionMap() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Map<String, PluginExecution> getExecutionsAsMap() {
-        throw new UnsupportedOperationException();
+    public List<MavenCoordinate> getDependencies() {
+        return plugin.childElement("dependencies")
+                .map(deps -> deps.childElements("dependency")
+                        .map(dep -> (MavenCoordinate) new DomTripMavenCoordinate(dep, editor))
+                        .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
     }
 
     @Override

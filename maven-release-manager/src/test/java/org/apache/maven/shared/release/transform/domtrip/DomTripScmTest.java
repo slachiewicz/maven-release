@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DomTripScmTest {
 
@@ -37,26 +36,30 @@ class DomTripScmTest {
 
     @Test
     void testGetConnection() {
-        assertThrows(
-                UnsupportedOperationException.class, () -> createScm("<scm/>").getConnection());
+        assertEquals(
+                "VALUE", createScm("<scm><connection>VALUE</connection></scm>").getConnection());
+        assertNull(createScm("<scm/>").getConnection());
     }
 
     @Test
     void testGetDeveloperConnection() {
-        assertThrows(
-                UnsupportedOperationException.class, () -> createScm("<scm/>").getDeveloperConnection());
+        assertEquals(
+                "VALUE",
+                createScm("<scm><developerConnection>VALUE</developerConnection></scm>")
+                        .getDeveloperConnection());
+        assertNull(createScm("<scm/>").getDeveloperConnection());
     }
 
     @Test
     void testGetTag() {
-        assertThrows(
-                UnsupportedOperationException.class, () -> createScm("<scm/>").getTag());
+        assertEquals("VALUE", createScm("<scm><tag>VALUE</tag></scm>").getTag());
+        assertNull(createScm("<scm/>").getTag());
     }
 
     @Test
     void testGetUrl() {
-        assertThrows(
-                UnsupportedOperationException.class, () -> createScm("<scm/>").getUrl());
+        assertEquals("VALUE", createScm("<scm><url>VALUE</url></scm>").getUrl());
+        assertNull(createScm("<scm/>").getUrl());
     }
 
     @Test

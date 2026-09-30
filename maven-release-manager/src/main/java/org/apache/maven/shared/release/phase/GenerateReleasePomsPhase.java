@@ -18,39 +18,31 @@
  */
 package org.apache.maven.shared.release.phase;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
-import java.io.IOException;
-import java.io.Writer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.model.Build;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Extension;
-import org.apache.maven.model.Model;
-import org.apache.maven.model.Plugin;
-import org.apache.maven.model.ReportPlugin;
-import org.apache.maven.model.Reporting;
-import org.apache.maven.model.Resource;
-import org.apache.maven.model.Scm;
-import org.apache.maven.model.building.DefaultModelBuildingRequest;
-import org.apache.maven.model.building.ModelBuildingRequest;
-import org.apache.maven.model.interpolation.ModelInterpolator;
-import org.apache.maven.model.io.xpp3.MavenXpp3Writer;
-import org.apache.maven.model.superpom.SuperPomProvider;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.apache.maven.api.model.Build;
+import org.apache.maven.api.model.Dependency;
+import org.apache.maven.api.model.Extension;
+import org.apache.maven.api.model.Model;
+import org.apache.maven.api.model.Plugin;
+import org.apache.maven.api.model.ReportPlugin;
+import org.apache.maven.api.model.Reporting;
+import org.apache.maven.api.model.Resource;
+import org.apache.maven.api.model.Scm;
+import org.apache.maven.api.services.SuperPomProvider;
+import org.apache.maven.api.services.xml.ModelXmlFactory;
+import org.apache.maven.api.services.xml.XmlReaderException;
+import org.apache.maven.api.services.xml.XmlWriterException;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.command.add.AddScmResult;
@@ -65,7 +57,12 @@ import org.apache.maven.shared.release.scm.ReleaseScmCommandException;
 import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
 import org.apache.maven.shared.release.scm.ScmTranslator;
 import org.apache.maven.shared.release.util.ReleaseUtil;
-import org.codehaus.plexus.util.xml.XmlStreamWriter;
+import org.apache.maven.shared.release.versions.ArtifactKeys;
+import org.codehaus.plexus.interpolation.InterpolationException;
+import org.codehaus.plexus.interpolation.MapBasedValueSource;
+import org.codehaus.plexus.interpolation.PrefixAwareRecursionInterceptor;
+import org.codehaus.plexus.interpolation.PrefixedObjectValueSource;
+import org.codehaus.plexus.interpolation.StringSearchInterpolator;
 
 import static java.util.Objects.requireNonNull;
 
@@ -82,7 +79,7 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
 
     private final SuperPomProvider superPomProvider;
 
-    private final ModelInterpolator modelInterpolator;
+    private final ModelXmlFactory modelXmlFactory;
 
     /**
      * SCM URL translators mapped by provider name.
@@ -93,23 +90,21 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
     public GenerateReleasePomsPhase(
             ScmRepositoryConfigurator scmRepositoryConfigurator,
             SuperPomProvider superPomProvider,
-            ModelInterpolator modelInterpolator,
+            ModelXmlFactory modelXmlFactory,
             Map<String, ScmTranslator> scmTranslators) {
         super(scmRepositoryConfigurator);
         this.superPomProvider = requireNonNull(superPomProvider);
-        this.modelInterpolator = requireNonNull(modelInterpolator);
+        this.modelXmlFactory = requireNonNull(modelXmlFactory);
         this.scmTranslators = requireNonNull(scmTranslators);
     }
 
     /*
      * @see org.apache.maven.shared.release.phase.ReleasePhase#execute(org.apache.maven.shared.release.config.ReleaseDescriptor,
-     *      org.apache.maven.settings.Settings, java.util.List)
+     *      org.apache.maven.shared.release.env.ReleaseEnvironment, java.util.List)
      */
     @Override
     public ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException {
         return execute(releaseDescriptor, releaseEnvironment, reactorProjects, false);
     }
@@ -117,7 +112,7 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
     private ReleaseResult execute(
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects,
+            List<Project> reactorProjects,
             boolean simulate)
             throws ReleaseExecutionException, ReleaseFailureException {
         ReleaseResult result = new ReleaseResult();
@@ -138,14 +133,14 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
     private void generateReleasePoms(
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects,
+            List<Project> reactorProjects,
             boolean simulate,
             ReleaseResult result)
             throws ReleaseExecutionException, ReleaseFailureException {
         List<File> releasePoms = new ArrayList<>();
 
-        for (MavenProject project : reactorProjects) {
-            logInfo(result, "Generating release POM for '" + project.getName() + "'...");
+        for (Project project : reactorProjects) {
+            logInfo(result, "Generating release POM for '" + ReleaseUtil.getProjectName(project) + "'...");
 
             releasePoms.add(generateReleasePom(project, releaseDescriptor, releaseEnvironment, result));
         }
@@ -154,7 +149,7 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
     }
 
     private File generateReleasePom(
-            MavenProject project,
+            Project project,
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment,
             ReleaseResult result)
@@ -165,8 +160,6 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
 
         // write release pom to file
 
-        MavenXpp3Writer pomWriter = new MavenXpp3Writer();
-
         File releasePomFile = ReleaseUtil.getReleasePom(project);
 
         // MRELEASE-273 : A release pom can be null
@@ -174,9 +167,9 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
             throw new ReleaseExecutionException("Cannot generate release POM : pom file is null");
         }
 
-        try (Writer fileWriter = new XmlStreamWriter(releasePomFile)) {
-            pomWriter.write(fileWriter, releasePom);
-        } catch (IOException exception) {
+        try {
+            modelXmlFactory.write(releasePom, releasePomFile.toPath());
+        } catch (XmlWriterException exception) {
             throw new ReleaseExecutionException("Cannot generate release POM", exception);
         }
 
@@ -186,7 +179,7 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
     private void addReleasePomsToScm(
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects,
+            List<Project> reactorProjects,
             boolean simulate,
             ReleaseResult result,
             List<File> releasePoms)
@@ -197,8 +190,9 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
             ScmRepository scmRepository = getScmRepository(releaseDescriptor, releaseEnvironment);
             ScmProvider scmProvider = getScmProvider(scmRepository);
 
-            MavenProject rootProject = ReleaseUtil.getRootProject(reactorProjects);
-            ScmFileSet scmFileSet = new ScmFileSet(rootProject.getFile().getParentFile(), releasePoms);
+            Project rootProject = ReleaseUtil.getRootProject(reactorProjects);
+            ScmFileSet scmFileSet =
+                    new ScmFileSet(ReleaseUtil.getPomFile(rootProject).getParentFile(), releasePoms);
 
             try {
                 AddScmResult scmResult = scmProvider.add(scmRepository, scmFileSet);
@@ -214,26 +208,32 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
     }
 
     private Model createReleaseModel(
-            MavenProject project,
+            Project project,
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment,
             ReleaseResult result)
             throws ReleaseFailureException, ReleaseExecutionException {
-        MavenProject releaseProject = project.clone();
-        Model releaseModel = releaseProject.getModel();
+        Model effectiveModel = project.getModel();
+        ProjectArtifacts projectArtifacts = ProjectArtifacts.of(releaseEnvironment.getSession(), project);
 
         // the release POM should reflect bits of these which were injected at build time...
         // we don't need these polluting the POM.
-        releaseModel.setParent(null);
-        releaseModel.setProfiles(Collections.emptyList());
-        releaseModel.setDependencyManagement(null);
-        releaseProject.getBuild().setPluginManagement(null);
+        // a builder from with() ignores null values, so these are cleared with newBuilder(model, true)
+        Model.Builder releaseBuilder = Model.newBuilder(effectiveModel, true)
+                .parent(null)
+                .profiles(Collections.emptyList())
+                .dependencyManagement(null);
+        Build.Builder buildBuilder =
+                Build.newBuilder(effectiveModel.getBuild(), true).pluginManagement(null);
 
         // update project version
         String releaseVersion = getNextVersion(releaseDescriptor, project.getGroupId(), project.getArtifactId());
-        releaseModel.setVersion(releaseVersion);
+        releaseBuilder.version(releaseVersion);
 
-        String originalFinalName = releaseModel.getBuild().getFinalName();
+        // interpolation of the final name needs the release version
+        Model releaseModel = releaseBuilder.build();
+
+        String originalFinalName = effectiveModel.getBuild().getFinalName();
         // update final name if implicit
         if (!FINALNAME_EXPRESSION.equals(originalFinalName)) {
             originalFinalName = findOriginalFinalName(project);
@@ -248,21 +248,20 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
         String finalName = ReleaseUtil.interpolate(originalFinalName, releaseModel);
 
         // still required?
-        if (finalName.contains(Artifact.SNAPSHOT_VERSION)) {
-            throw new ReleaseFailureException(
-                    "Cannot reliably adjust the finalName of project: " + releaseProject.getId());
+        if (finalName.contains(ArtifactKeys.SNAPSHOT_VERSION)) {
+            throw new ReleaseFailureException("Cannot reliably adjust the finalName of project: " + project.getId());
         }
-        releaseModel.getBuild().setFinalName(finalName);
+        buildBuilder.finalName(finalName);
 
         // update scm
-        Scm scm = releaseModel.getScm();
+        Scm scm = effectiveModel.getScm();
 
         if (scm != null) {
             ScmRepository scmRepository = getScmRepository(releaseDescriptor, releaseEnvironment);
             ScmTranslator scmTranslator = getScmTranslator(scmRepository);
 
             if (scmTranslator != null) {
-                releaseModel.setScm(createReleaseScm(releaseModel.getScm(), scmTranslator, releaseDescriptor));
+                releaseBuilder.scm(createReleaseScm(scm, scmTranslator, releaseDescriptor));
             } else {
                 String message = "No SCM translator found - skipping rewrite";
 
@@ -273,103 +272,146 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
         }
 
         // rewrite dependencies
-        releaseModel.setDependencies(createReleaseDependencies(releaseDescriptor, releaseProject));
+        releaseBuilder.dependencies(createReleaseDependencies(releaseDescriptor, projectArtifacts));
 
         // rewrite plugins
-        releaseModel.getBuild().setPlugins(createReleasePlugins(releaseDescriptor, releaseProject));
+        buildBuilder.plugins(createReleasePlugins(releaseDescriptor, project, projectArtifacts));
 
         // rewrite reports
-        releaseModel.getReporting().setPlugins(createReleaseReportPlugins(releaseDescriptor, releaseProject));
+        Reporting.Builder reportingBuilder = effectiveModel.getReporting() != null
+                ? effectiveModel.getReporting().with()
+                : Reporting.newBuilder();
+        reportingBuilder.plugins(createReleaseReportPlugins(releaseDescriptor, project, projectArtifacts));
 
         // rewrite extensions
-        releaseModel.getBuild().setExtensions(createReleaseExtensions(releaseDescriptor, releaseProject));
+        buildBuilder.extensions(createReleaseExtensions(releaseDescriptor, project, projectArtifacts));
 
-        unalignFromBaseDirectory(releaseModel, project.getBasedir());
+        releaseBuilder.build(buildBuilder.build()).reporting(reportingBuilder.build());
 
-        return releaseModel;
+        return unalignFromBaseDirectory(releaseBuilder.build(), ReleaseUtil.getBasedir(project));
     }
 
-    private void unalignFromBaseDirectory(Model releaseModel, File basedir) {
-        Model rawSuperModel = superPomProvider.getSuperModel(releaseModel.getModelVersion());
+    private Model unalignFromBaseDirectory(Model releaseModel, File basedir) throws ReleaseExecutionException {
+        Model rawSuperModel = superPomProvider.getSuperPom(releaseModel.getModelVersion());
 
-        ModelBuildingRequest buildingRequest = new DefaultModelBuildingRequest();
-        buildingRequest.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_STRICT);
-
-        // inject proper values used by project.build.finalName
-        Properties properties = new Properties();
-        properties.put("project.version", releaseModel.getVersion());
-        properties.put("project.artifactId", releaseModel.getArtifactId());
-        buildingRequest.setUserProperties(properties);
-
-        Model interpolatedSuperModel =
-                modelInterpolator.interpolateModel(rawSuperModel.clone(), basedir, buildingRequest, null);
-
+        Path basePath = basedir.toPath();
         Build currentBuild = releaseModel.getBuild();
-        Build interpolatedSuperBuild = interpolatedSuperModel.getBuild();
         Build rawSuperBuild = rawSuperModel.getBuild();
 
-        currentBuild.setSourceDirectory(resolvePath(
-                basedir.toPath(),
+        // the super POM values, once with expressions replaced ("interpolated") and once as declared ("raw")
+        Build.Builder buildBuilder = currentBuild.with();
+        buildBuilder.sourceDirectory(resolvePath(
+                basePath,
                 currentBuild.getSourceDirectory(),
-                interpolatedSuperBuild.getSourceDirectory(),
+                superValue(rawSuperModel, rawSuperBuild.getSourceDirectory(), basedir, releaseModel),
                 rawSuperBuild.getSourceDirectory()));
-        currentBuild.setScriptSourceDirectory(resolvePath(
-                basedir.toPath(),
+        buildBuilder.scriptSourceDirectory(resolvePath(
+                basePath,
                 currentBuild.getScriptSourceDirectory(),
-                interpolatedSuperBuild.getScriptSourceDirectory(),
+                superValue(rawSuperModel, rawSuperBuild.getScriptSourceDirectory(), basedir, releaseModel),
                 rawSuperBuild.getScriptSourceDirectory()));
-        currentBuild.setTestSourceDirectory(resolvePath(
-                basedir.toPath(),
+        buildBuilder.testSourceDirectory(resolvePath(
+                basePath,
                 currentBuild.getTestSourceDirectory(),
-                interpolatedSuperBuild.getTestSourceDirectory(),
+                superValue(rawSuperModel, rawSuperBuild.getTestSourceDirectory(), basedir, releaseModel),
                 rawSuperBuild.getTestSourceDirectory()));
-        currentBuild.setOutputDirectory(resolvePath(
-                basedir.toPath(),
+        buildBuilder.outputDirectory(resolvePath(
+                basePath,
                 currentBuild.getOutputDirectory(),
-                interpolatedSuperBuild.getOutputDirectory(),
+                superValue(rawSuperModel, rawSuperBuild.getOutputDirectory(), basedir, releaseModel),
                 rawSuperBuild.getOutputDirectory()));
-        currentBuild.setTestOutputDirectory(resolvePath(
-                basedir.toPath(),
+        buildBuilder.testOutputDirectory(resolvePath(
+                basePath,
                 currentBuild.getTestOutputDirectory(),
-                interpolatedSuperBuild.getTestOutputDirectory(),
+                superValue(rawSuperModel, rawSuperBuild.getTestOutputDirectory(), basedir, releaseModel),
                 rawSuperBuild.getTestOutputDirectory()));
-        currentBuild.setDirectory(resolvePath(
-                basedir.toPath(),
+        buildBuilder.directory(resolvePath(
+                basePath,
                 currentBuild.getDirectory(),
-                interpolatedSuperBuild.getDirectory(),
+                superValue(rawSuperModel, rawSuperBuild.getDirectory(), basedir, releaseModel),
                 rawSuperBuild.getDirectory()));
 
-        for (Resource currentResource : currentBuild.getResources()) {
-            Map<String, String> superResourceDirectories =
-                    new LinkedHashMap<>(interpolatedSuperBuild.getResources().size());
-            for (int i = 0; i < interpolatedSuperBuild.getResources().size(); i++) {
-                superResourceDirectories.put(
-                        interpolatedSuperBuild.getResources().get(i).getDirectory(),
-                        rawSuperBuild.getResources().get(i).getDirectory());
-            }
-            currentResource.setDirectory(
-                    resolvePath(basedir.toPath(), currentResource.getDirectory(), superResourceDirectories));
+        buildBuilder.resources(unalignResources(
+                basePath,
+                currentBuild.getResources(),
+                rawSuperBuild.getResources(),
+                rawSuperModel,
+                basedir,
+                releaseModel));
+        buildBuilder.testResources(unalignResources(
+                basePath,
+                currentBuild.getTestResources(),
+                rawSuperBuild.getTestResources(),
+                rawSuperModel,
+                basedir,
+                releaseModel));
+
+        Reporting reporting = releaseModel.getReporting();
+        Reporting rawSuperReporting = rawSuperModel.getReporting();
+        Reporting.Builder reportingBuilder = reporting.with();
+        reportingBuilder.outputDirectory(resolvePath(
+                basePath,
+                reporting.getOutputDirectory(),
+                superValue(rawSuperModel, rawSuperReporting.getOutputDirectory(), basedir, releaseModel),
+                rawSuperReporting.getOutputDirectory()));
+
+        return releaseModel
+                .with()
+                .build(buildBuilder.build())
+                .reporting(reportingBuilder.build())
+                .build();
+    }
+
+    private List<Resource> unalignResources(
+            Path basedir,
+            List<Resource> currentResources,
+            List<Resource> rawSuperResources,
+            Model rawSuperModel,
+            File basedirFile,
+            Model releaseModel)
+            throws ReleaseExecutionException {
+        Map<String, String> superResourceDirectories = new LinkedHashMap<>(rawSuperResources.size());
+        for (Resource rawSuperResource : rawSuperResources) {
+            superResourceDirectories.put(
+                    superValue(rawSuperModel, rawSuperResource.getDirectory(), basedirFile, releaseModel),
+                    rawSuperResource.getDirectory());
         }
 
-        for (Resource currentResource : currentBuild.getTestResources()) {
-            Map<String, String> superResourceDirectories = new LinkedHashMap<>(
-                    interpolatedSuperBuild.getTestResources().size());
-            for (int i = 0; i < interpolatedSuperBuild.getTestResources().size(); i++) {
-                superResourceDirectories.put(
-                        interpolatedSuperBuild.getTestResources().get(i).getDirectory(),
-                        rawSuperBuild.getTestResources().get(i).getDirectory());
-            }
-            currentResource.setDirectory(
-                    resolvePath(basedir.toPath(), currentResource.getDirectory(), superResourceDirectories));
+        List<Resource> resources = new ArrayList<>(currentResources.size());
+        for (Resource currentResource : currentResources) {
+            resources.add(currentResource
+                    .with()
+                    .directory(resolvePath(basedir, currentResource.getDirectory(), superResourceDirectories))
+                    .build());
         }
+        return resources;
+    }
 
-        releaseModel
-                .getReporting()
-                .setOutputDirectory(resolvePath(
-                        basedir.toPath(),
-                        releaseModel.getReporting().getOutputDirectory(),
-                        interpolatedSuperModel.getReporting().getOutputDirectory(),
-                        rawSuperModel.getReporting().getOutputDirectory()));
+    /**
+     * Replaces the expressions of a super POM value the way the Maven 3 model interpolator did: {@code basedir},
+     * the version and artifact id of the release model, and everything else by reading the super POM itself.
+     */
+    private String superValue(Model rawSuperModel, String value, File basedir, Model releaseModel)
+            throws ReleaseExecutionException {
+        if (value == null || !value.contains("${")) {
+            return value;
+        }
+        StringSearchInterpolator interpolator = new StringSearchInterpolator();
+        List<String> pomPrefixes = java.util.Arrays.asList("pom.", "project.");
+        Map<String, String> known = new LinkedHashMap<>();
+        // inject proper values used by project.build.finalName
+        known.put("project.version", releaseModel.getVersion());
+        known.put("project.artifactId", releaseModel.getArtifactId());
+        known.put("project.basedir", basedir.getAbsolutePath());
+        known.put("pom.basedir", basedir.getAbsolutePath());
+        known.put("basedir", basedir.getAbsolutePath());
+        interpolator.addValueSource(new MapBasedValueSource(known));
+        interpolator.addValueSource(new PrefixedObjectValueSource(pomPrefixes, rawSuperModel, false));
+        try {
+            return interpolator.interpolate(value, new PrefixAwareRecursionInterceptor(pomPrefixes));
+        } catch (InterpolationException e) {
+            throw new ReleaseExecutionException("Failed to interpolate " + value + " of the super POM", e);
+        }
     }
 
     private String resolvePath(Path basedir, String current, String superInterpolated, String superRaw) {
@@ -386,22 +428,28 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
         return current;
     }
 
-    private String findOriginalFinalName(MavenProject project) {
-        if (project.getOriginalModel().getBuild() != null
-                && project.getOriginalModel().getBuild().getFinalName() != null) {
-            return project.getOriginalModel().getBuild().getFinalName();
-        } else if (project.hasParent()) {
-            return findOriginalFinalName(project.getParent());
+    private String findOriginalFinalName(Project project) throws ReleaseExecutionException {
+        Model originalModel = readOriginalModel(project);
+        if (originalModel.getBuild() != null && originalModel.getBuild().getFinalName() != null) {
+            return originalModel.getBuild().getFinalName();
+        } else if (project.getParent().isPresent()) {
+            return findOriginalFinalName(project.getParent().get());
         } else {
             return null;
         }
     }
 
+    private Model readOriginalModel(Project project) throws ReleaseExecutionException {
+        try {
+            return modelXmlFactory.read(project.getPomPath(), false);
+        } catch (XmlReaderException e) {
+            throw new ReleaseExecutionException("Cannot read the POM of " + project.getId() + ": " + e.getMessage(), e);
+        }
+    }
+
     @Override
     public ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException {
         return execute(releaseDescriptor, releaseEnvironment, reactorProjects, true);
     }
@@ -410,7 +458,7 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
             throws ReleaseFailureException {
         // TODO: share with RewritePomsForReleasePhase.rewriteVersion
 
-        String id = ArtifactUtils.versionlessKey(groupId, artifactId);
+        String id = ArtifactKeys.versionlessKey(groupId, artifactId);
 
         String nextVersion = releaseDescriptor.getProjectReleaseVersion(id);
 
@@ -431,73 +479,58 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
         String tag = releaseDescriptor.getScmReleaseLabel();
         String tagBase = releaseDescriptor.getScmTagBase();
 
-        Scm releaseScm = new Scm();
+        Scm.Builder releaseScm = Scm.newBuilder();
 
         if (scm.getConnection() != null) {
             String value = scmTranslator.translateTagUrl(scm.getConnection(), tag, tagBase);
-            releaseScm.setConnection(value);
+            releaseScm.connection(value);
         }
 
         if (scm.getDeveloperConnection() != null) {
             String value = scmTranslator.translateTagUrl(scm.getDeveloperConnection(), tag, tagBase);
-            releaseScm.setDeveloperConnection(value);
+            releaseScm.developerConnection(value);
         }
 
         if (scm.getUrl() != null) {
             String value = scmTranslator.translateTagUrl(scm.getUrl(), tag, tagBase);
-            releaseScm.setUrl(value);
+            releaseScm.url(value);
         }
 
         if (scm.getTag() != null) {
             String value = scmTranslator.resolveTag(scm.getTag());
-            releaseScm.setTag(value);
+            releaseScm.tag(value);
         }
 
-        return releaseScm;
+        return releaseScm.build();
     }
 
-    private List<Dependency> createReleaseDependencies(ReleaseDescriptor releaseDescriptor, MavenProject project)
-            throws ReleaseFailureException {
-        Set<Artifact> artifacts = project.getDependencyArtifacts();
+    private List<Dependency> createReleaseDependencies(
+            ReleaseDescriptor releaseDescriptor, ProjectArtifacts projectArtifacts) throws ReleaseFailureException {
+        // make dependency order deterministic for tests (related to MNG-1412)
+        List<ResolvedArtifact> orderedArtifacts = new ArrayList<>(projectArtifacts.getDependencyArtifacts());
+        Collections.sort(orderedArtifacts);
 
-        List<Dependency> releaseDependencies = null;
+        List<Dependency> releaseDependencies = new ArrayList<>();
 
-        if (artifacts != null) {
-            // make dependency order deterministic for tests (related to MNG-1412)
-            List<Artifact> orderedArtifacts = new ArrayList<>(artifacts);
-            Collections.sort(orderedArtifacts);
+        for (ResolvedArtifact artifact : orderedArtifacts) {
+            String version = getReleaseVersion(releaseDescriptor, artifact);
 
-            releaseDependencies = new ArrayList<>();
-
-            for (Artifact artifact : orderedArtifacts) {
-                if (artifact.getVersion() == null) {
-                    artifact.setVersion(project.getArtifactMap()
-                            .get(ArtifactUtils.versionlessKey(artifact))
-                            .getVersion());
-                }
-
-                Dependency releaseDependency = new Dependency();
-
-                releaseDependency.setGroupId(artifact.getGroupId());
-                releaseDependency.setArtifactId(artifact.getArtifactId());
-
-                String version = getReleaseVersion(releaseDescriptor, artifact);
-
-                releaseDependency.setVersion(version);
-                releaseDependency.setType(artifact.getType());
-                releaseDependency.setScope(artifact.getScope());
-                releaseDependency.setClassifier(artifact.getClassifier());
-
-                releaseDependencies.add(releaseDependency);
-            }
+            releaseDependencies.add(Dependency.newBuilder()
+                    .groupId(artifact.getGroupId())
+                    .artifactId(artifact.getArtifactId())
+                    .version(version)
+                    .type(artifact.getType())
+                    .scope(artifact.getScope())
+                    .classifier(artifact.getClassifier())
+                    .build());
         }
 
         return releaseDependencies;
     }
 
-    private String getReleaseVersion(ReleaseDescriptor releaseDescriptor, Artifact artifact)
+    private String getReleaseVersion(ReleaseDescriptor releaseDescriptor, ResolvedArtifact artifact)
             throws ReleaseFailureException {
-        String key = ArtifactUtils.versionlessKey(artifact);
+        String key = artifact.versionlessKey();
 
         String originalVersion = releaseDescriptor.getProjectOriginalVersion(key);
         String mappedVersion = releaseDescriptor.getProjectReleaseVersion(key);
@@ -511,7 +544,7 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
                 throw new ReleaseFailureException("Version '" + version + "' for '" + key + "' was not mapped");
             }
         } else {
-            if (!ArtifactUtils.isSnapshot(version)) {
+            if (!ArtifactKeys.isSnapshot(version)) {
                 version = artifact.getBaseVersion();
             }
         }
@@ -519,108 +552,102 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
         return version;
     }
 
-    private List<Plugin> createReleasePlugins(ReleaseDescriptor releaseDescriptor, MavenProject project)
+    /**
+     * Pins the version of a plugin, report plugin or extension. Maven 3 resolved unversioned ones to the latest
+     * release; the Maven 4 API cannot do that, so they stay unversioned.
+     */
+    private String getReleaseVersion(
+            ReleaseDescriptor releaseDescriptor,
+            Map<String, ResolvedArtifact> artifactsById,
+            String groupId,
+            String artifactId)
             throws ReleaseFailureException {
-        List<Plugin> releasePlugins = null;
+        ResolvedArtifact artifact = artifactsById.get(ArtifactKeys.versionlessKey(groupId, artifactId));
+        return artifact == null ? null : getReleaseVersion(releaseDescriptor, artifact);
+    }
+
+    private List<Plugin> createReleasePlugins(
+            ReleaseDescriptor releaseDescriptor, Project project, ProjectArtifacts projectArtifacts)
+            throws ReleaseFailureException, ReleaseExecutionException {
+        List<Plugin> releasePlugins = new ArrayList<>();
 
         // Use original - don't want the lifecycle introduced ones
-        Build build = project.getOriginalModel().getBuild();
+        Build build = readOriginalModel(project).getBuild();
 
         if (build != null) {
-            List<Plugin> plugins = build.getPlugins();
+            for (Plugin plugin : build.getPlugins()) {
+                String version = getReleaseVersion(
+                        releaseDescriptor,
+                        projectArtifacts.getPluginArtifactMap(),
+                        plugin.getGroupId(),
+                        plugin.getArtifactId());
 
-            if (plugins != null) {
-                Map<String, Artifact> artifactsById = project.getPluginArtifactMap();
-
-                releasePlugins = new ArrayList<>();
-
-                for (Plugin plugin : plugins) {
-                    String id = ArtifactUtils.versionlessKey(plugin.getGroupId(), plugin.getArtifactId());
-                    Artifact artifact = artifactsById.get(id);
-                    String version = getReleaseVersion(releaseDescriptor, artifact);
-
-                    Plugin releasePlugin = new Plugin();
-                    releasePlugin.setGroupId(plugin.getGroupId());
-                    releasePlugin.setArtifactId(plugin.getArtifactId());
-                    releasePlugin.setVersion(version);
-                    if (plugin.getExtensions() != null) {
-                        releasePlugin.setExtensions(plugin.isExtensions());
-                    }
-                    releasePlugin.setExecutions(plugin.getExecutions());
-                    releasePlugin.setDependencies(plugin.getDependencies());
-                    releasePlugin.setInherited(plugin.getInherited());
-                    if (plugin.getConfiguration() != null) {
-                        releasePlugin.setConfiguration(plugin.getConfiguration());
-                    }
-
-                    releasePlugins.add(releasePlugin);
-                }
+                releasePlugins.add(Plugin.newBuilder()
+                        .groupId(plugin.getGroupId())
+                        .artifactId(plugin.getArtifactId())
+                        .version(version)
+                        .extensions(plugin.getExtensions())
+                        .executions(plugin.getExecutions())
+                        .dependencies(plugin.getDependencies())
+                        .inherited(plugin.getInherited())
+                        .configuration(plugin.getConfiguration())
+                        .build());
             }
         }
 
         return releasePlugins;
     }
 
-    private List<ReportPlugin> createReleaseReportPlugins(ReleaseDescriptor releaseDescriptor, MavenProject project)
+    private List<ReportPlugin> createReleaseReportPlugins(
+            ReleaseDescriptor releaseDescriptor, Project project, ProjectArtifacts projectArtifacts)
             throws ReleaseFailureException {
-        List<ReportPlugin> releaseReportPlugins = null;
+        List<ReportPlugin> releaseReportPlugins = new ArrayList<>();
 
         Reporting reporting = project.getModel().getReporting();
 
         if (reporting != null) {
-            List<ReportPlugin> reportPlugins = reporting.getPlugins();
+            for (ReportPlugin reportPlugin : reporting.getPlugins()) {
+                String version = getReleaseVersion(
+                        releaseDescriptor,
+                        projectArtifacts.getReportArtifactMap(),
+                        reportPlugin.getGroupId(),
+                        reportPlugin.getArtifactId());
 
-            if (reportPlugins != null) {
-                Map<String, Artifact> artifactsById = project.getReportArtifactMap();
-
-                releaseReportPlugins = new ArrayList<>();
-
-                for (ReportPlugin reportPlugin : reportPlugins) {
-                    String id = ArtifactUtils.versionlessKey(reportPlugin.getGroupId(), reportPlugin.getArtifactId());
-                    Artifact artifact = artifactsById.get(id);
-                    String version = getReleaseVersion(releaseDescriptor, artifact);
-
-                    ReportPlugin releaseReportPlugin = new ReportPlugin();
-                    releaseReportPlugin.setGroupId(reportPlugin.getGroupId());
-                    releaseReportPlugin.setArtifactId(reportPlugin.getArtifactId());
-                    releaseReportPlugin.setVersion(version);
-                    releaseReportPlugin.setInherited(reportPlugin.getInherited());
-                    releaseReportPlugin.setConfiguration(reportPlugin.getConfiguration());
-                    releaseReportPlugin.setReportSets(reportPlugin.getReportSets());
-
-                    releaseReportPlugins.add(releaseReportPlugin);
-                }
+                releaseReportPlugins.add(ReportPlugin.newBuilder()
+                        .groupId(reportPlugin.getGroupId())
+                        .artifactId(reportPlugin.getArtifactId())
+                        .version(version)
+                        .inherited(reportPlugin.getInherited())
+                        .configuration(reportPlugin.getConfiguration())
+                        .reportSets(reportPlugin.getReportSets())
+                        .build());
             }
         }
 
         return releaseReportPlugins;
     }
 
-    private List<Extension> createReleaseExtensions(ReleaseDescriptor releaseDescriptor, MavenProject project)
-            throws ReleaseFailureException {
-        List<Extension> releaseExtensions = null;
+    private List<Extension> createReleaseExtensions(
+            ReleaseDescriptor releaseDescriptor, Project project, ProjectArtifacts projectArtifacts)
+            throws ReleaseFailureException, ReleaseExecutionException {
+        List<Extension> releaseExtensions = new ArrayList<>();
 
         // Use original - don't want the lifecycle introduced ones
-        Build build = project.getOriginalModel().getBuild();
+        Build build = readOriginalModel(project).getBuild();
 
         if (build != null) {
-            List<Extension> extensions = build.getExtensions();
+            for (Extension extension : build.getExtensions()) {
+                String version = getReleaseVersion(
+                        releaseDescriptor,
+                        projectArtifacts.getExtensionArtifactMap(),
+                        extension.getGroupId(),
+                        extension.getArtifactId());
 
-            if (extensions != null) {
-                releaseExtensions = new ArrayList<>();
-
-                for (Extension extension : extensions) {
-                    String id = ArtifactUtils.versionlessKey(extension.getGroupId(), extension.getArtifactId());
-                    Artifact artifact = project.getExtensionArtifactMap().get(id);
-                    String version = getReleaseVersion(releaseDescriptor, artifact);
-
-                    Extension releaseExtension = new Extension();
-                    releaseExtension.setGroupId(extension.getGroupId());
-                    releaseExtension.setArtifactId(extension.getArtifactId());
-                    releaseExtension.setVersion(version);
-
-                    releaseExtensions.add(releaseExtension);
-                }
+                releaseExtensions.add(Extension.newBuilder()
+                        .groupId(extension.getGroupId())
+                        .artifactId(extension.getArtifactId())
+                        .version(version)
+                        .build());
             }
         }
 
@@ -631,15 +658,15 @@ public class GenerateReleasePomsPhase extends AbstractReleasePomsPhase implement
      * @see org.apache.maven.shared.release.phase.AbstractReleasePhase#clean(java.util.List)
      */
     @Override
-    public ReleaseResult clean(List<MavenProject> reactorProjects) {
+    public ReleaseResult clean(List<Project> reactorProjects) {
         ReleaseResult result = new ReleaseResult();
 
-        for (MavenProject project : reactorProjects) {
+        for (Project project : reactorProjects) {
             File releasePom = ReleaseUtil.getReleasePom(project);
 
             // MRELEASE-273 : A release pom can be null
             if (releasePom != null && releasePom.exists()) {
-                logInfo(result, "Deleting release POM for '" + project.getName() + "'...");
+                logInfo(result, "Deleting release POM for '" + ReleaseUtil.getProjectName(project) + "'...");
 
                 if (!releasePom.delete()) {
                     logWarn(result, "Cannot delete release POM: " + releasePom);

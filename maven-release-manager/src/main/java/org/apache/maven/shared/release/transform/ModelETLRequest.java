@@ -18,7 +18,7 @@
  */
 package org.apache.maven.shared.release.transform;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
 
 /**
@@ -29,7 +29,7 @@ import org.apache.maven.shared.release.config.ReleaseDescriptor;
  */
 public class ModelETLRequest {
 
-    private MavenProject project;
+    private Project project;
 
     private ReleaseDescriptor releaseDescriptor;
 
@@ -45,18 +45,18 @@ public class ModelETLRequest {
     /**
      * <p>Getter for the field <code>project</code>.</p>
      *
-     * @return a {@link org.apache.maven.project.MavenProject} object
+     * @return a {@link org.apache.maven.api.Project} object
      */
-    public MavenProject getProject() {
+    public Project getProject() {
         return project;
     }
 
     /**
      * <p>Setter for the field <code>project</code>.</p>
      *
-     * @param project a {@link org.apache.maven.project.MavenProject} object
+     * @param project a {@link org.apache.maven.api.Project} object
      */
-    public void setProject(MavenProject project) {
+    public void setProject(Project project) {
         this.project = project;
     }
 

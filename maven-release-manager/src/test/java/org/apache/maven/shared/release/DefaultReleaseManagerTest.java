@@ -18,24 +18,24 @@
  */
 package org.apache.maven.shared.release;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.model.Model;
+import org.apache.maven.di.Injector;
 import org.apache.maven.scm.CommandParameters;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmTag;
 import org.apache.maven.scm.command.checkout.CheckOutScmResult;
-import org.apache.maven.scm.manager.ScmManager;
-import org.apache.maven.scm.manager.ScmManagerStub;
 import org.apache.maven.scm.provider.ScmProvider;
 import org.apache.maven.scm.provider.ScmProviderStub;
 import org.apache.maven.scm.repository.ScmRepository;
@@ -44,16 +44,19 @@ import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseDescriptorStore;
 import org.apache.maven.shared.release.config.ReleaseDescriptorStoreException;
 import org.apache.maven.shared.release.config.ReleaseDescriptorStoreStub;
-import org.apache.maven.shared.release.env.DefaultReleaseEnvironment;
 import org.apache.maven.shared.release.phase.ReleasePhase;
 import org.apache.maven.shared.release.phase.ReleasePhaseStub;
 import org.apache.maven.shared.release.scm.ReleaseScmCommandException;
-import org.codehaus.plexus.testing.PlexusTest;
+import org.apache.maven.shared.release.strategy.Strategy;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
+import org.apache.maven.shared.release.stubs.ScmManagerStub;
+import org.apache.maven.shared.release.stubs.TestProject;
 import org.codehaus.plexus.util.FileUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.codehaus.plexus.testing.PlexusExtension.getTestFile;
-import static org.codehaus.plexus.testing.PlexusExtension.getTestPath;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestFile;
+import static org.apache.maven.shared.release.stubs.TestPaths.getTestPath;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -73,42 +76,118 @@ import static org.mockito.Mockito.when;
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
-class DefaultReleaseManagerTest {
+class DefaultReleaseManagerTest extends AbstractInjectedTestCase {
 
     @Inject
+    protected ScmManagerStub scmManager;
+
+    @Override
+    protected void customizeInjector(Injector injector) {
+        injector.bindImplicit(ScmManagerStub.class);
+    }
+
     private ReleaseDescriptorStoreStub configStore;
 
-    @Inject
-    @Named("test")
     private ReleaseManager releaseManagerTest;
 
-    @Inject
-    @Named("step1")
     private ReleasePhase phaseStep1;
 
-    @Inject
-    @Named("step2")
     private ReleasePhase phaseStep2;
 
-    @Inject
-    @Named("step3")
     private ReleasePhase phaseStep3;
 
-    @Inject
-    @Named("rollbackPhase1")
     private ReleasePhase phaseRollbackPhase1;
 
-    @Inject
-    @Named("updateVersionsPhase1")
     private ReleasePhase phaseUpdateVersionsPhase1;
 
-    @Inject
-    @Named("branch1")
     private ReleasePhase phaseBranch1;
 
     @Inject
-    private ScmManager scmManager;
+    private Map<String, ReleasePhase> injectedPhases;
+
+    @BeforeEach
+    void setUpReleaseManager() {
+        configStore = new ReleaseDescriptorStoreStub();
+        phaseStep1 = new ReleasePhaseStub();
+        phaseStep2 = new ReleasePhaseStub();
+        phaseStep3 = new ReleasePhaseStub();
+        phaseRollbackPhase1 = new ReleasePhaseStub();
+        phaseUpdateVersionsPhase1 = new ReleasePhaseStub();
+        phaseBranch1 = new ReleasePhaseStub();
+
+        // the real phases of the perform goal, next to the stubs
+        Map<String, ReleasePhase> phases = new HashMap<>(injectedPhases);
+        phases.put("step1", phaseStep1);
+        phases.put("step2", phaseStep2);
+        phases.put("step3", phaseStep3);
+        phases.put("branch1", phaseBranch1);
+        phases.put("rollbackPhase1", phaseRollbackPhase1);
+        phases.put("updateVersionsPhase1", phaseUpdateVersionsPhase1);
+
+        Map<String, Strategy> strategies = new HashMap<>();
+        strategies.put(
+                "default",
+                new TestStrategy(
+                        Arrays.asList("step1", "step2", "step3"),
+                        Arrays.asList(
+                                "verify-completed-prepare-phases", "checkout-project-from-scm", "run-perform-goals"),
+                        Collections.singletonList("branch1"),
+                        Collections.singletonList("rollbackPhase1"),
+                        Collections.singletonList("updateVersionsPhase1")));
+        strategies.put("foo", new TestStrategy(Collections.singletonList("foo"), null, null, null, null));
+
+        releaseManagerTest = new DefaultReleaseManager(strategies, phases, configStore);
+    }
+
+    private static final class TestStrategy implements Strategy {
+        private final List<String> preparePhases;
+
+        private final List<String> performPhases;
+
+        private final List<String> branchPhases;
+
+        private final List<String> rollbackPhases;
+
+        private final List<String> updateVersionsPhases;
+
+        TestStrategy(
+                List<String> preparePhases,
+                List<String> performPhases,
+                List<String> branchPhases,
+                List<String> rollbackPhases,
+                List<String> updateVersionsPhases) {
+            this.preparePhases = preparePhases;
+            this.performPhases = performPhases;
+            this.branchPhases = branchPhases;
+            this.rollbackPhases = rollbackPhases;
+            this.updateVersionsPhases = updateVersionsPhases;
+        }
+
+        @Override
+        public List<String> getPreparePhases() {
+            return preparePhases;
+        }
+
+        @Override
+        public List<String> getPerformPhases() {
+            return performPhases;
+        }
+
+        @Override
+        public List<String> getBranchPhases() {
+            return branchPhases;
+        }
+
+        @Override
+        public List<String> getRollbackPhases() {
+            return rollbackPhases;
+        }
+
+        @Override
+        public List<String> getUpdateVersionsPhases() {
+            return updateVersionsPhases;
+        }
+    }
 
     @Test
     void testPrepareNoCompletedPhase() throws Exception {
@@ -117,7 +196,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setUserProperties(new Properties());
 
         releaseManagerTest.prepare(prepareRequest);
@@ -137,7 +216,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setUserProperties(new Properties());
 
         releaseManagerTest.prepare(prepareRequest);
@@ -157,7 +236,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setDryRun(false);
         prepareRequest.setResume(false);
         prepareRequest.setUserProperties(new Properties());
@@ -179,7 +258,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setUserProperties(new Properties());
 
         releaseManagerTest.prepare(prepareRequest);
@@ -199,7 +278,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setUserProperties(new Properties());
 
         releaseManagerTest.prepare(prepareRequest);
@@ -219,7 +298,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setDryRun(true);
         prepareRequest.setResume(true);
         prepareRequest.setUserProperties(new Properties());
@@ -241,7 +320,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setDryRun(true);
         prepareRequest.setResume(true);
         prepareRequest.setUserProperties(new Properties());
@@ -263,7 +342,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setDryRun(true);
         prepareRequest.setResume(true);
         prepareRequest.setUserProperties(new Properties());
@@ -285,7 +364,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setDryRun(true);
         prepareRequest.setResume(true);
         prepareRequest.setUserProperties(new Properties());
@@ -315,7 +394,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setUserProperties(new Properties());
 
         // execute
@@ -348,7 +427,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePrepareRequest prepareRequest = new ReleasePrepareRequest();
         prepareRequest.setReleaseDescriptorBuilder(builder);
-        prepareRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        prepareRequest.setReleaseEnvironment(newReleaseEnvironment());
         prepareRequest.setDryRun(false);
         prepareRequest.setResume(false);
         prepareRequest.setUserProperties(new Properties());
@@ -397,16 +476,13 @@ class DefaultReleaseManagerTest {
         verifyNoMoreInteractions(configStoreMock);
     }
 
-    private static List<MavenProject> createReactorProjects() throws IOException {
-        MavenProject project = new MavenProject();
-
+    private static List<Project> createReactorProjects() throws IOException {
         File projectFile = getTestFile("target/dummy-project/pom.xml");
         if (!projectFile.exists()) {
             projectFile.getParentFile().mkdirs();
             projectFile.createNewFile();
         }
-        project.setFile(projectFile);
-        return Collections.singletonList(project);
+        return Collections.singletonList(TestProject.of(Model.newInstance(), projectFile.toPath()));
     }
 
     @Test
@@ -420,7 +496,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePerformRequest performRequest = new ReleasePerformRequest();
         performRequest.setReleaseDescriptorBuilder(builder);
-        performRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        performRequest.setReleaseEnvironment(newReleaseEnvironment());
         performRequest.setReactorProjects(createReactorProjects());
 
         ReleaseResult result = releaseManagerTest.performWithResult(performRequest);
@@ -443,7 +519,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePerformRequest performRequest = new ReleasePerformRequest();
         performRequest.setReleaseDescriptorBuilder(builder);
-        performRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        performRequest.setReleaseEnvironment(newReleaseEnvironment());
 
         // execute
         try {
@@ -473,7 +549,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePerformRequest performRequest = new ReleasePerformRequest();
         performRequest.setReleaseDescriptorBuilder(builder);
-        performRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        performRequest.setReleaseEnvironment(newReleaseEnvironment());
 
         try {
             builder.setUseReleaseProfile(false);
@@ -525,7 +601,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePerformRequest performRequest = new ReleasePerformRequest();
         performRequest.setReleaseDescriptorBuilder(builder);
-        performRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        performRequest.setReleaseEnvironment(newReleaseEnvironment());
 
         try {
             builder.setUseReleaseProfile(false);
@@ -554,11 +630,11 @@ class DefaultReleaseManagerTest {
                         any(CommandParameters.class)))
                 .thenThrow(new ScmException("..."));
 
-        ((ScmManagerStub) scmManager).setScmProvider(scmProviderMock);
+        scmManager.setScmProvider(scmProviderMock);
 
         ReleasePerformRequest performRequest = new ReleasePerformRequest();
         performRequest.setReleaseDescriptorBuilder(builder);
-        performRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        performRequest.setReleaseEnvironment(newReleaseEnvironment());
         performRequest.setReactorProjects(createReactorProjects());
 
         // execute
@@ -593,7 +669,7 @@ class DefaultReleaseManagerTest {
 
         ReleasePerformRequest performRequest = new ReleasePerformRequest();
         performRequest.setReleaseDescriptorBuilder(builder);
-        performRequest.setReleaseEnvironment(new DefaultReleaseEnvironment());
+        performRequest.setReleaseEnvironment(newReleaseEnvironment());
         performRequest.setReactorProjects(createReactorProjects());
 
         try {

@@ -25,6 +25,11 @@ under the License.
   <groupId>groupId</groupId>
   <artifactId>subproject1</artifactId>
   <version>1.0</version>
+  <properties>
+    <project.build.outputTimestamp>1980-02-01T00:00:00Z</project.build.outputTimestamp>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
   <build>
     <sourceDirectory>${project.basedir}/src/main/java</sourceDirectory>
     <scriptSourceDirectory>${project.basedir}/src/main/scripts</scriptSourceDirectory>
@@ -44,22 +49,6 @@ under the License.
     <directory>${project.basedir}/target</directory>
     <finalName>subproject1-1.0</finalName>
   </build>
-  <repositories>
-    <repository>
-      <id>central</id>
-      <url>${remoterepo}</url>
-    </repository>
-  </repositories>
-  <pluginRepositories>
-    <pluginRepository>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <id>central</id>
-      <name>Central Repository</name>
-      <url>https://repo.maven.apache.org/maven2</url>
-    </pluginRepository>
-  </pluginRepositories>
   <dependencies>
     <dependency>
       <groupId>junit</groupId>

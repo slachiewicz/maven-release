@@ -21,6 +21,8 @@ package org.apache.maven.shared.release.util;
 import java.io.File;
 import java.net.URL;
 
+import org.apache.maven.api.services.xml.ModelXmlFactory;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
@@ -32,10 +34,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * @author <a href="mailto:struberg@yahoo.de">Mark Struberg</a>
  */
-class PomFinderTest {
+class PomFinderTest extends AbstractInjectedTestCase {
     @Test
     void testPomFinderParser() {
-        PomFinder pf = new PomFinder(LoggerFactory.getLogger("test"));
+        PomFinder pf = new PomFinder(
+                LoggerFactory.getLogger("test"), testSession.getSession().getService(ModelXmlFactory.class));
 
         boolean found = pf.parsePom(new File("src/test/resources/pomfinder/pomNothere.xml"));
         assertFalse(found);

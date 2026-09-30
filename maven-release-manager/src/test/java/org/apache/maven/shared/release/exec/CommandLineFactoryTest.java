@@ -18,9 +18,8 @@
  */
 package org.apache.maven.shared.release.exec;
 
-import javax.inject.Inject;
-
-import org.codehaus.plexus.testing.PlexusTest;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
 import org.codehaus.plexus.util.cli.Commandline;
 import org.junit.jupiter.api.Test;
 
@@ -33,8 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
-class CommandLineFactoryTest {
+class CommandLineFactoryTest extends AbstractInjectedTestCase {
 
     @Inject
     private CommandLineFactory factory;

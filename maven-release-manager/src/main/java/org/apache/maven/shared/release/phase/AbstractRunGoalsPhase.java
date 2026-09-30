@@ -22,7 +22,7 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.config.ReleaseDescriptor;
@@ -51,7 +51,7 @@ public abstract class AbstractRunGoalsPhase extends AbstractReleasePhase {
     protected ReleaseResult execute(
             ReleaseDescriptor releaseDescriptor,
             ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects,
+            List<Project> reactorProjects,
             boolean logArguments)
             throws ReleaseExecutionException {
         return execute(

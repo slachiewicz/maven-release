@@ -19,14 +19,11 @@
 package org.apache.maven.shared.release.util;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.model.Parent;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
-import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
+import org.apache.maven.api.model.Model;
+import org.apache.maven.api.model.Parent;
+import org.apache.maven.api.services.xml.ModelXmlFactory;
+import org.apache.maven.api.services.xml.XmlReaderException;
 import org.slf4j.Logger;
 
 import static java.util.Objects.requireNonNull;
@@ -63,10 +60,12 @@ import static java.util.Objects.requireNonNull;
 public class PomFinder {
 
     private final Logger log;
+    private final ModelXmlFactory modelXmlFactory;
     private PomInfo foundPomInfo;
 
-    public PomFinder(Logger log) {
+    public PomFinder(Logger log, ModelXmlFactory modelXmlFactory) {
         this.log = requireNonNull(log);
+        this.modelXmlFactory = requireNonNull(modelXmlFactory);
     }
 
     /**
@@ -156,33 +155,29 @@ public class PomFinder {
      * @param pomFile pom.xml file
      * @return the PomInfo or <code>null</code
      */
-    private PomInfo readPomInfo(File pomFile) throws IOException, XmlPullParserException {
+    private PomInfo readPomInfo(File pomFile) throws XmlReaderException {
         if (!pomFile.exists() || !pomFile.isFile()) {
             return null;
         }
 
         PomInfo pomInfo = null;
 
-        MavenXpp3Reader reader = new MavenXpp3Reader();
+        Model model = modelXmlFactory.read(pomFile.toPath());
 
-        try (InputStream in = Files.newInputStream(pomFile.toPath())) {
-            Model model = reader.read(in);
+        if (model != null) {
+            pomInfo = new PomInfo();
+            pomInfo.setArtifactId(model.getArtifactId());
+            pomInfo.setGroupId(model.getGroupId());
 
-            if (model != null) {
-                pomInfo = new PomInfo();
-                pomInfo.setArtifactId(model.getArtifactId());
-                pomInfo.setGroupId(model.getGroupId());
-
-                Parent parent = model.getParent();
-                if (parent != null) {
-                    pomInfo.setParentArtifactId(parent.getArtifactId());
-                    pomInfo.setParentGroupId(parent.getGroupId());
-                }
-
-                pomInfo.setFileName(pomFile.getName());
+            Parent parent = model.getParent();
+            if (parent != null) {
+                pomInfo.setParentArtifactId(parent.getArtifactId());
+                pomInfo.setParentGroupId(parent.getGroupId());
             }
-            return pomInfo;
+
+            pomInfo.setFileName(pomFile.getName());
         }
+        return pomInfo;
     }
 
     /**

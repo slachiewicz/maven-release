@@ -18,19 +18,20 @@
  */
 package org.apache.maven.shared.release.scm;
 
-import javax.inject.Inject;
+import java.util.Collections;
 
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.settings.Server;
+import org.apache.maven.api.settings.Settings;
 import org.apache.maven.scm.manager.NoSuchScmProviderException;
 import org.apache.maven.scm.provider.ScmProvider;
 import org.apache.maven.scm.provider.ScmProviderRepositoryWithHost;
 import org.apache.maven.scm.provider.svn.repository.SvnScmProviderRepository;
 import org.apache.maven.scm.repository.ScmRepository;
 import org.apache.maven.scm.repository.ScmRepositoryException;
-import org.apache.maven.settings.Server;
-import org.apache.maven.settings.Settings;
 import org.apache.maven.shared.release.config.ReleaseDescriptorBuilder;
 import org.apache.maven.shared.release.config.ReleaseUtils;
-import org.codehaus.plexus.testing.PlexusTest;
+import org.apache.maven.shared.release.stubs.AbstractInjectedTestCase;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -42,8 +43,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
-@PlexusTest
-class DefaultScmRepositoryConfiguratorTest {
+class DefaultScmRepositoryConfiguratorTest extends AbstractInjectedTestCase {
     @Inject
     private ScmRepositoryConfigurator scmRepositoryConfigurator;
 
@@ -86,14 +86,15 @@ class DefaultScmRepositoryConfiguratorTest {
 
     @Test
     void testGetConfiguredRepositoryWithHost() throws ScmRepositoryException, NoSuchScmProviderException {
-        Settings settings = new Settings();
-        Server server = new Server();
-        server.setId("localhost");
-        server.setUsername("settings-username");
-        server.setPassword("settings-password");
-        server.setPrivateKey("settings-private-key");
-        server.setPassphrase("settings-passphrase");
-        settings.addServer(server);
+        Settings settings = Settings.newBuilder()
+                .servers(Collections.singletonList(Server.newBuilder()
+                        .id("localhost")
+                        .username("settings-username")
+                        .password("settings-password")
+                        .privateKey("settings-private-key")
+                        .passphrase("settings-passphrase")
+                        .build()))
+                .build();
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setScmSourceUrl("scm:svn:http://localhost/repo");
@@ -113,13 +114,14 @@ class DefaultScmRepositoryConfiguratorTest {
 
     @Test
     void testGetConfiguredRepositoryWithEncryptedPasswords() throws ScmRepositoryException, NoSuchScmProviderException {
-        Settings settings = new Settings();
-        Server server = new Server();
-        server.setId("localhost");
-        server.setUsername("testuser");
-        server.setPassword("{Ael0S2tnXv8H3X+gHKpZAvAA25D8+gmU2w2RrGaf5v8=}");
-        server.setPassphrase("{7zK9P8hNVeUHbTsjiA/vnOs0zUXbND+9MBNPvdvl+x4=}");
-        settings.addServer(server);
+        Settings settings = Settings.newBuilder()
+                .servers(Collections.singletonList(Server.newBuilder()
+                        .id("localhost")
+                        .username("testuser")
+                        .password("{Ael0S2tnXv8H3X+gHKpZAvAA25D8+gmU2w2RrGaf5v8=}")
+                        .passphrase("{7zK9P8hNVeUHbTsjiA/vnOs0zUXbND+9MBNPvdvl+x4=}")
+                        .build()))
+                .build();
 
         ReleaseDescriptorBuilder builder = new ReleaseDescriptorBuilder();
         builder.setScmSourceUrl("scm:svn:svn://localhost/repo");

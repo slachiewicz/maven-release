@@ -21,8 +21,7 @@ package org.apache.maven.shared.release.phase;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.maven.scm.manager.NoSuchScmProviderException;
 import org.apache.maven.scm.repository.ScmRepositoryException;
 import org.apache.maven.shared.release.ReleaseExecutionException;
@@ -33,6 +32,7 @@ import org.apache.maven.shared.release.env.ReleaseEnvironment;
 import org.apache.maven.shared.release.scm.ReleaseScmRepositoryException;
 import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
 import org.apache.maven.shared.release.util.MavenExpression;
+import org.apache.maven.shared.release.versions.ArtifactKeys;
 
 import static java.util.Objects.requireNonNull;
 
@@ -64,9 +64,7 @@ public abstract class AbstractCheckPomPhase extends AbstractReleasePhase {
 
     @Override
     public ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException {
         ReleaseResult result = new ReleaseResult();
 
@@ -89,9 +87,10 @@ public abstract class AbstractCheckPomPhase extends AbstractReleasePhase {
 
         boolean containsSnapshotProjects = false;
 
-        for (MavenProject project : reactorProjects) {
-            String projectVersion = MavenExpression.evaluate(project.getVersion(), project.getProperties());
-            if (ArtifactUtils.isSnapshot(projectVersion)) {
+        for (Project project : reactorProjects) {
+            String projectVersion = MavenExpression.evaluate(
+                    project.getVersion(), project.getModel().getProperties());
+            if (ArtifactKeys.isSnapshot(projectVersion)) {
                 containsSnapshotProjects = true;
 
                 break;
@@ -109,9 +108,7 @@ public abstract class AbstractCheckPomPhase extends AbstractReleasePhase {
 
     @Override
     public ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException, ReleaseFailureException {
         // It makes no modifications, so simulate is the same as execute
         return execute(releaseDescriptor, releaseEnvironment, reactorProjects);

@@ -24,8 +24,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.services.Prompter;
+import org.apache.maven.api.services.PrompterException;
 import org.apache.maven.scm.manager.NoSuchScmProviderException;
 import org.apache.maven.scm.provider.ScmProvider;
 import org.apache.maven.scm.repository.ScmRepository;
@@ -40,8 +41,7 @@ import org.apache.maven.shared.release.policy.naming.NamingPolicyRequest;
 import org.apache.maven.shared.release.scm.ReleaseScmRepositoryException;
 import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
 import org.apache.maven.shared.release.util.ReleaseUtil;
-import org.codehaus.plexus.components.interactivity.Prompter;
-import org.codehaus.plexus.components.interactivity.PrompterException;
+import org.apache.maven.shared.release.versions.ArtifactKeys;
 import org.codehaus.plexus.interpolation.InterpolationException;
 import org.codehaus.plexus.interpolation.Interpolator;
 import org.codehaus.plexus.interpolation.PrefixAwareRecursionInterceptor;
@@ -133,20 +133,18 @@ public abstract class AbstractInputVariablesPhase extends AbstractReleasePhase {
 
     @Override
     public ReleaseResult execute(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException {
         ReleaseResult result = new ReleaseResult();
 
         // get the root project
-        MavenProject project = ReleaseUtil.getRootProject(reactorProjects);
+        Project project = ReleaseUtil.getRootProject(reactorProjects);
 
         String tag = releaseDescriptor.getScmReleaseLabel();
 
         if (tag == null) {
             // Must get default version from mapped versions, as the project will be the incorrect snapshot
-            String key = ArtifactUtils.versionlessKey(project.getGroupId(), project.getArtifactId());
+            String key = ArtifactKeys.versionlessKey(project.getGroupId(), project.getArtifactId());
             String releaseVersion = releaseDescriptor.getProjectReleaseVersion(key);
             if (releaseVersion == null) {
                 throw new ReleaseExecutionException("Project tag cannot be selected if version is not yet mapped");
@@ -198,7 +196,7 @@ public abstract class AbstractInputVariablesPhase extends AbstractReleasePhase {
                 try {
                     if (branchOperation) {
                         tag = prompter.get()
-                                .prompt("What is the branch name for \"" + project.getName() + "\"? ("
+                                .prompt("What is the branch name for \"" + ReleaseUtil.getProjectName(project) + "\"? ("
                                         + buffer().project(project.getArtifactId()) + ")");
                         if (tag == null || tag.isEmpty()) {
                             throw new ReleaseExecutionException("No branch name was given.");
@@ -206,7 +204,8 @@ public abstract class AbstractInputVariablesPhase extends AbstractReleasePhase {
                     } else {
                         tag = prompter.get()
                                 .prompt(
-                                        "What is the SCM release tag or label for \"" + project.getName() + "\"? ("
+                                        "What is the SCM release tag or label for \""
+                                                + ReleaseUtil.getProjectName(project) + "\"? ("
                                                 + buffer().project(project.getArtifactId()) + ")",
                                         suggestedName);
                     }
@@ -233,9 +232,7 @@ public abstract class AbstractInputVariablesPhase extends AbstractReleasePhase {
 
     @Override
     public ReleaseResult simulate(
-            ReleaseDescriptor releaseDescriptor,
-            ReleaseEnvironment releaseEnvironment,
-            List<MavenProject> reactorProjects)
+            ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<Project> reactorProjects)
             throws ReleaseExecutionException {
         ReleaseResult result = new ReleaseResult();
 
@@ -247,7 +244,7 @@ public abstract class AbstractInputVariablesPhase extends AbstractReleasePhase {
         return result;
     }
 
-    private String resolveSuggestedName(String policyId, String version, MavenProject project) throws PolicyException {
+    private String resolveSuggestedName(String policyId, String version, Project project) throws PolicyException {
         if (policyId == null) {
             return null;
         }

@@ -18,20 +18,18 @@
  */
 package org.apache.maven.shared.release.exec;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 
-import org.apache.maven.settings.io.xpp3.SettingsXpp3Writer;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.apache.maven.api.services.xml.SettingsXmlFactory;
+import org.apache.maven.api.services.xml.XmlWriterException;
 import org.apache.maven.shared.release.ReleaseResult;
 import org.apache.maven.shared.release.env.ReleaseEnvironment;
 import org.apache.maven.shared.release.util.MavenCrypto;
@@ -54,8 +52,9 @@ public class ForkedMavenExecutor extends AbstractMavenExecutor {
     private final CommandLineFactory commandLineFactory;
 
     @Inject
-    public ForkedMavenExecutor(MavenCrypto mavenCrypto, CommandLineFactory commandLineFactory) {
-        super(mavenCrypto);
+    public ForkedMavenExecutor(
+            MavenCrypto mavenCrypto, SettingsXmlFactory settingsXmlFactory, CommandLineFactory commandLineFactory) {
+        super(mavenCrypto, settingsXmlFactory);
         this.commandLineFactory = requireNonNull(commandLineFactory);
     }
 
@@ -85,12 +84,8 @@ public class ForkedMavenExecutor extends AbstractMavenExecutor {
             // Have to serialize to a file as if Maven is embedded, there may not actually be a settings.xml on disk
             try {
                 settingsFile = Files.createTempFile("release-settings", ".xml").toFile();
-                SettingsXpp3Writer writer = getSettingsWriter();
-
-                try (Writer fileWriter = Files.newBufferedWriter(settingsFile.toPath(), StandardCharsets.UTF_8)) {
-                    writer.write(fileWriter, encryptSettings(releaseEnvironment.getSettings()));
-                }
-            } catch (IOException e) {
+                getSettingsXmlFactory().write(encryptSettings(releaseEnvironment.getSettings()), settingsFile.toPath());
+            } catch (IOException | XmlWriterException e) {
                 throw new MavenExecutorException("Could not create temporary file for release settings.xml", e);
             }
         }

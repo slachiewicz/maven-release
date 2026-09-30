@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.maven.model.Scm;
+import org.apache.maven.api.model.Scm;
 import org.apache.maven.shared.release.util.ReleaseUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -770,7 +770,7 @@ public class ReleaseDescriptorBuilder {
      * <p>addOriginalScmInfo.</p>
      *
      * @param key   a {@link java.lang.String} object
-     * @param value a {@link org.apache.maven.model.Scm} object
+     * @param value a {@link org.apache.maven.api.model.Scm} object
      * @return a {@link org.apache.maven.shared.release.config.ReleaseDescriptorBuilder} object
      */
     public ReleaseDescriptorBuilder addOriginalScmInfo(String key, Scm value) {

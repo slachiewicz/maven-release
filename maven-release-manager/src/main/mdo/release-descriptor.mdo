@@ -662,7 +662,7 @@ under the License.
     /**
      * Field originalScmInfo.
      */
-    private java.util.Map<String, org.apache.maven.model.Scm> originalScmInfo = new java.util.HashMap<>();
+    private java.util.Map<String, org.apache.maven.api.model.Scm> originalScmInfo = new java.util.HashMap<>();
     
     
     java.util.Map<String, ReleaseStageVersions> getProjectVersions()
@@ -670,7 +670,7 @@ under the License.
         return projectVersions;
     }
     
-    java.util.Map<String, org.apache.maven.model.Scm> getOriginalScmInfo()
+    java.util.Map<String, org.apache.maven.api.model.Scm> getOriginalScmInfo()
     {
         return originalScmInfo;
     }
@@ -730,7 +730,7 @@ under the License.
      * 
      * @return Scm
      */
-    public org.apache.maven.model.Scm getOriginalScmInfo( String id )
+    public org.apache.maven.api.model.Scm getOriginalScmInfo( String id )
     {
         return this.originalScmInfo.get( id );
     } //-- Scm getOriginalScmInfo( String)
@@ -751,10 +751,10 @@ under the License.
      * @param key
      * @param value
      */
-    public void addOriginalScmInfo( String key, org.apache.maven.model.Scm value )
+    public void addOriginalScmInfo( String key, org.apache.maven.api.model.Scm value )
     {
         getOriginalScmInfo().put( key, value );
-    } //-- void addOriginalScmInfo( String, org.apache.maven.model.Scm )
+    } //-- void addOriginalScmInfo( String, org.apache.maven.api.model.Scm )
 
     public String getProjectOriginalVersion( String projectId )
     {
@@ -1018,7 +1018,7 @@ under the License.
         return true;
     }
 
-    private boolean compareScmCollections( java.util.Map<String, org.apache.maven.model.Scm> that )
+    private boolean compareScmCollections( java.util.Map<String, org.apache.maven.api.model.Scm> that )
     {
         // Must manually compare as Scm doesn't have an equals method
         if ( that == null && originalScmInfo == null )
@@ -1036,13 +1036,13 @@ under the License.
             return false;
         }
 
-        for ( java.util.Iterator<java.util.Map.Entry<String, org.apache.maven.model.Scm>> i = originalScmInfo.entrySet().iterator(); i.hasNext(); )
+        for ( java.util.Iterator<java.util.Map.Entry<String, org.apache.maven.api.model.Scm>> i = originalScmInfo.entrySet().iterator(); i.hasNext(); )
         {
-            java.util.Map.Entry<String, org.apache.maven.model.Scm> entry = i.next();
+            java.util.Map.Entry<String, org.apache.maven.api.model.Scm> entry = i.next();
 
-            org.apache.maven.model.Scm thatScm = that.get( entry.getKey() );
+            org.apache.maven.api.model.Scm thatScm = that.get( entry.getKey() );
 
-            org.apache.maven.model.Scm thisScm = entry.getValue();
+            org.apache.maven.api.model.Scm thisScm = entry.getValue();
             if ( thatScm == null && thisScm == null )
             {
                 return true;
