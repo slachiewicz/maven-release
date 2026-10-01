@@ -23,7 +23,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -416,7 +415,7 @@ class ForkedMavenExecutorTest extends AbstractInjectedTestCase {
         executorSpy.executeGoals(
                 workingDirectory, "validate", releaseEnvironment, false, null, null, new ReleaseResult());
 
-        verify(settingsXmlFactory).write(encryptedSettings.capture(), isA(Path.class));
+        verify(settingsXmlFactory).write(encryptedSettings.capture(), isA(OutputStream.class));
 
         assertNotSame(settings, encryptedSettings.getValue());
 
