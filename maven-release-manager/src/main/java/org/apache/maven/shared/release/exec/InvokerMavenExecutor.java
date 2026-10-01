@@ -20,6 +20,7 @@ package org.apache.maven.shared.release.exec;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -93,7 +94,11 @@ public class InvokerMavenExecutor extends AbstractMavenExecutor {
             // Have to serialize to a file as if Maven is embedded, there may not actually be a settings.xml on disk
             try {
                 settingsFile = Files.createTempFile("release-settings", ".xml").toFile();
-                getSettingsXmlFactory().write(encryptSettings(releaseEnvironment.getSettings()), settingsFile.toPath());
+                // DefaultSettingsXmlFactory ignores a Path request, so write through a stream; the stream writer emits
+                // UTF-8
+                try (OutputStream out = Files.newOutputStream(settingsFile.toPath())) {
+                    getSettingsXmlFactory().write(encryptSettings(releaseEnvironment.getSettings()), out);
+                }
                 req.setUserSettingsFile(settingsFile);
             } catch (IOException | XmlWriterException e) {
                 throw new MavenExecutorException("Could not create temporary file for release settings.xml", e);

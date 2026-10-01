@@ -19,7 +19,7 @@
 package org.apache.maven.shared.release.exec;
 
 import java.io.File;
-import java.nio.file.Path;
+import java.io.OutputStream;
 import java.util.Collections;
 
 import org.apache.maven.api.di.Inject;
@@ -84,7 +84,7 @@ class InvokerMavenExecutorTest extends AbstractInjectedTestCase {
         } catch (MavenExecutorException e) {
         }
 
-        verify(settingsXmlFactory).write(encryptedSettings.capture(), isA(Path.class));
+        verify(settingsXmlFactory).write(encryptedSettings.capture(), isA(OutputStream.class));
 
         assertNotSame(settings, encryptedSettings.getValue());
 
